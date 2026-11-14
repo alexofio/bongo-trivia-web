@@ -31,7 +31,8 @@ bongo-trivia-web/
 ├── .github/workflows/deploy.yml   Optional CI deploy
 └── public/
 ├── _headers          Security and cache headers; noindex during demo
-├── robots.txt, 404.html, favicon.svg
+├── robots.txt, 404.html, favicon-32.png, apple-touch-icon.png
+├── img/              Logos (white for blue backgrounds, blue for white), app icons, share image (FB cover)
 ├── index.html        Shell: header band, <main id="app">, live region, footer, script order
 ├── css/styles.css    Brand tokens (royal blue gradient, ribbon yellow), light + dark theme, all components
 ├── js/config.js      Price, merchant, timers, prize amounts, [TBC] legal values, USE_MOCK switch
@@ -91,7 +92,7 @@ Server rules the front end relies on: questions picked server-side at random acr
 - 18+ confirmation added at sign-up: MSISDN KYC proves the line owner, not age.
 - Login with an unregistered number is refused and offers sign-up; sign-up with a registered number just logs in.
 - Language preference saved to the account.
-- The wordmark is typeset (Lilita One + ribbon) until a readable vector logo replaces it.
+- Logo from Bongo-Profile1/2 PNGs (14 Nov); FB cover is the social share image.
 - 33 sample questions are illustrative and need Swahili editor approval.
 
 ## Decided (14 Nov 2026)
@@ -102,6 +103,6 @@ Server rules the front end relies on: questions picked server-side at random acr
 
 - GBT permit: Bluetrain is promoter; licence not yet held (application to follow). Paid entry + draw = consideration + chance [LEGAL-TBC].
 - SMS shortcode, sender ID, support phone and email, retention period, number of winners per period.
-- Vector logo: the project's .ai copy is damaged; the header uses a typeset stand-in.
+- Vector logo: header uses a transparent PNG cut from the 500 px profile logo; replace with SVG when a clean vector file is available.
 - Swahili legal text and a native-speaker pass on interface copy.
 - Phase 2: ad-watch for free sets (Perfect 7-style ad platform).
