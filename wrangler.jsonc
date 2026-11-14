@@ -1,0 +1,23 @@
+{
+  // Bongo Trivia player website (bt-web). Serves public/ and owns bongotrivia.co.tz.
+  // /api/* runs the Worker first; it forwards to bt-api once that Worker exists (see BT_API below).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bongo-trivia-web",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-13",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "bongotrivia.co.tz", "custom_domain": true },
+    { "pattern": "www.bongotrivia.co.tz", "custom_domain": true }
+  ],
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": { "SITE_MODE": "demo" }
+  // When bt-api is deployed, add:
+  // "services": [{ "binding": "BT_API", "service": "bt-api" }]
+}

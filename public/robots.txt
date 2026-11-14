@@ -1,0 +1,3 @@
+# Demo phase: not indexed yet. At launch replace with "Allow: /" and remove X-Robots-Tag in _headers.
+User-agent: *
+Disallow: /

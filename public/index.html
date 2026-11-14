@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bongo Trivia</title>
+  <meta name="description" content="Bongo Trivia: jibu maswali 3 sahihi uingie kwenye droo ya TZS 5,000 kila saa na TZS 100,000 kila siku.">
+  <meta name="theme-color" content="#023DC1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Lilita+One&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip" href="#app" id="skipLink">Ruka hadi maudhui</a>
+
+  <!-- Demo banner: shown only while BT_CONFIG.USE_MOCK is true -->
+  <div class="demo" id="demoBanner" hidden></div>
+
+  <header class="band">
+    <div class="top">
+      <!-- Wordmark stand-in until the vector logo arrives (project .ai file is unreadable) -->
+      <a class="brand" href="#home" aria-label="Bongo Trivia, mwanzo">
+        <span class="bongo" aria-hidden="true">BONGO</span>
+        <span class="ribbon" aria-hidden="true">TRIVIA</span>
+      </a>
+      <nav class="nav" id="nav" aria-label="Main"></nav>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <!-- Polite live region: status changes (payment, timers, saves) are announced to screen readers -->
+  <div class="sr" id="live" aria-live="polite"></div>
+  <div id="toastHost"></div>
+
+  <footer class="band">
+    <div class="foot" id="footer"></div>
+  </footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/mock-api.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/legal.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
