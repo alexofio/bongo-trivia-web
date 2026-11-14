@@ -29,7 +29,7 @@
     clearTimeout(toast.t); toast.t = setTimeout(() => (h.innerHTML = ''), 3200);
   }
   const catName = c => (I18N.lang === 'en' ? c.name_en : c.name_sw);
-  const errText = e => ({ network: t('err_network'), rate_limited: t('err_rate'), too_many_requests: t('err_rate'), limit_reached: t('pay_limit') }[e.code] || (e.code === 'server' && e.message) || t('err_network'));
+  const errText = e => ({ network: t('err_network'), rate_limited: t('err_rate'), too_many_requests: t('err_rate'), limit_reached: t('pay_limit'), test_only: t('err_test_only') }[e.code] || (e.code === 'server' && e.message) || t('err_network'));
   const busy = (btn, on, label) => { btn.disabled = on; btn.innerHTML = on ? `<span class="spin" aria-hidden="true"></span>${esc(label)}` : esc(btn.dataset.label); };
   const go = v => { if (location.hash.slice(1) === v) route(); else location.hash = v; };
 
@@ -47,7 +47,7 @@
       <p><span class="badge18" aria-hidden="true">18+</span>${t('footer_18')}</p>
       <p>${t('footer_operator')}</p>`;
     $('#helpLink').onclick = e => { e.preventDefault(); toast(`${t('footer_help')}: ${C.SUPPORT_PHONE} · ${C.SUPPORT_EMAIL}`); };
-    const b = $('#demoBanner'); b.hidden = C.MODE !== 'mock'; b.textContent = t('demo_banner');
+    const b = $('#demoBanner'); b.hidden = C.MODE !== 'mock' && !C.TEST; b.textContent = C.TEST ? t('test_banner', { code: C.CAMPAIGN_CODE }) : t('demo_banner');
     $('#skipLink').textContent = t('skip');
     document.documentElement.lang = I18N.lang;
   }
@@ -330,14 +330,24 @@
         </section>
         <section aria-labelledby="entH"><h2 id="entH" style="font-size:22px;margin-top:8px">${t('entries_title')}</h2>
           <div class="tally"><div><b id="eh">–</b>${t('entries_hour')}</div><div><b id="ed">–</b>${t('entries_day')}</div></div></section>
-        <section class="soon" aria-disabled="true">
+        <section class="soon" id="adCard" ${API.mode === 'portal' ? 'hidden' : 'aria-disabled="true"'}>
           <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true"><rect x="4" y="9" width="44" height="30" rx="6" fill="none" stroke="currentColor" stroke-width="3"/><path d="M22 18v12l10-6z" fill="currentColor"/><path d="M18 45h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
-          <div><span class="tag">${t('ads_soon')}</span><h3 style="margin:0 0 4px">${t('ads_title')}</h3><p style="margin:0;font-size:15px">${t('ads_body')}</p>
+          <div id="adBody"><span class="tag">${t('ads_soon')}</span><h3 style="margin:0 0 4px">${t('ads_title')}</h3><p style="margin:0;font-size:15px">${t('ads_body')}</p>
             <button class="btn ghost" disabled style="margin-top:10px;min-height:44px">${t('ads_soon')}</button></div>
         </section>
         ${demoPanel()}
         <div class="err" id="playErr" role="alert"></div>
       </div>
+      <dialog id="adDlg" aria-labelledby="adH" style="border:0;border-radius:22px;padding:0;max-width:440px;width:calc(100% - 24px);background:#0b1b2e;color:#fff">
+        <div style="padding:14px">
+          <p id="adH" style="margin:0 0 8px;font-size:14px;opacity:.8"></p>
+          <div id="adMedia" style="background:#000;border-radius:14px;overflow:hidden;display:flex;justify-content:center;max-height:62vh"></div>
+          <p id="adHead" style="margin:10px 0 0;font-weight:600"></p>
+          <div class="meter" style="margin-top:10px"><i id="adBar" style="width:0%"></i></div>
+          <p id="adCount" class="hint" style="color:#fff;opacity:.85" aria-live="polite"></p>
+          <div class="stack"><button class="btn primary block" id="adDone" disabled></button><button class="btn text block" id="adMore" type="button" hidden style="color:#fff">${t('ads_more')}</button></div>
+        </div>
+      </dialog>
       <dialog id="notice" aria-labelledby="nH" style="border:0;border-radius:22px;padding:0;max-width:440px;width:calc(100% - 32px);background:var(--bg);color:var(--ink)">
         <div style="padding:24px">
           <h2 id="nH">${t('notice_title')}</h2>
@@ -373,6 +383,48 @@
           $('#nErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : er.code === 'payment_pending' ? t('pay_wait_body') : errText(er);
         }
       };
+      // Watch an ad for a free play (portal, paid campaigns while payments are collected).
+      const adCard = async () => {
+        const card = $('#adCard'); if (!card || API.mode !== 'portal' || C.PLAY_MODE !== 'paid' || C.CAMPAIGN_STATUS !== 'live') return;
+        const o = await API.adOffer(); if (!o || (!o.available && !o.freePlays && !o.adsLeftToday)) { card.hidden = true; return; }
+        card.hidden = false; card.removeAttribute('aria-disabled'); card.style.opacity = 1; card.style.borderStyle = 'solid';
+        $('#adBody').innerHTML = `<h3 style="margin:0 0 4px">${t('ads_title')}</h3><p style="margin:0;font-size:15px">${t('ads_body')}</p>
+          ${o.freePlays ? `<p style="margin:8px 0 0;font-weight:600">${t('ads_have', { n: o.freePlays })}</p><button class="btn primary" id="adPlay" style="margin-top:8px;min-height:44px">${t('ads_play_free')}</button>` : ''}
+          ${o.available ? `<button class="btn ${o.freePlays ? 'ghost' : 'primary'}" id="adWatch" style="margin-top:8px;min-height:44px">${t('ads_watch')}</button><p class="hint" style="margin:6px 0 0">${t('ads_left', { n: o.adsLeftToday })}</p>`
+            : `<p class="hint" style="margin:8px 0 0">${o.adsLeftToday ? t('ads_none') : t('ads_limit')}</p>`}`;
+        if ($('#adPlay')) $('#adPlay').onclick = async () => {
+          const b = $('#adPlay'); b.disabled = true; $('#playErr').textContent = '';
+          try { const r = await API.startFreePlay(); S.play = { play_id: r.play_id, startedAt: Date.now() }; S.roundId = r.round_id; S.marks = []; go('quiz'); }
+          catch (er) { b.disabled = false; $('#playErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : errText(er); }
+        };
+        if ($('#adWatch')) $('#adWatch').onclick = watchAd;
+      };
+      const watchAd = async () => {
+        const w = $('#adWatch'); w.disabled = true; $('#playErr').textContent = '';
+        let ad; try { ad = await API.nextAd(); } catch (er) { w.disabled = false; $('#playErr').textContent = er.code === 'ads_limit' ? t('ads_limit') : er.code === 'no_ads' ? t('ads_none') : errText(er); return; }
+        const d = $("#adDlg"), src = ad.media;
+        $('#adH').textContent = t('ads_from', { name: ad.advertiser || '' }); $('#adHead').textContent = ad.headline || '';
+        $('#adMedia').innerHTML = ad.format === 'video' ? `<video src="${esc(src)}" autoplay playsinline muted style="width:100%;max-height:62vh"></video>` : `<img src="${esc(src)}" alt="" style="width:100%;max-height:62vh;object-fit:contain">`;
+        $('#adMore').style.display = ad.hasLink ? '' : 'none'; $('#adMore').onclick = async () => { try { const r = await API.clickAd(ad.token); if (r.url) window.open(r.url, '_blank', 'noopener'); } catch (e) {} };
+        const done = $('#adDone'); done.disabled = true; done.textContent = t('ads_close');
+        let closed = false; d.onclose = () => { closed = true; clearInterval(tick); };
+        d.oncancel = e => { if (done.disabled) { e.preventDefault(); toast(t('ads_unfinished')); } };
+        d.showModal();
+        const start = Date.now(), need = (ad.seconds + 1) * 1000;
+        const tick = setInterval(async () => {
+          const left = Math.max(0, need - (Date.now() - start));
+          $('#adBar').style.width = `${Math.min(100, 100 * (1 - left / need))}%`;
+          $('#adCount').textContent = left ? t('ads_wait', { s: Math.ceil(left / 1000) }) : '';
+          if (!left) {
+            clearInterval(tick);
+            try { await API.completeAd(ad.token); if (!closed) $('#adCount').textContent = t('ads_done'); toast(t('ads_done')); }
+            catch (er) { $('#adCount').textContent = er.code === 'ad_not_finished' ? t('ads_unfinished') : errText(er); }
+            done.disabled = false; done.focus();
+          }
+        }, 250);
+        done.onclick = () => { d.close(); adCard(); };
+      };
+      adCard();
       $('#howBtn').onclick = () => openTour({ onPlay: open });
       if (S.autoNotice) { S.autoNotice = false; open(); }
       else if (!S.user.tutorial_done) openTour({ onPlay: open });

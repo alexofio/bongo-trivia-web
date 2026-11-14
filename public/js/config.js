@@ -29,3 +29,14 @@ window.BT_CONFIG = {
   GBT_PERMIT: 'application pending [TBC]',
   DOMAIN: 'bongotrivia.co.tz'
 };
+
+// ?c=CODE picks the campaign (e.g. the TEST campaign at bongotrivia.co.tz/?c=TEST; agent links /r/AGENT/CODE land
+// with c=CODE too). Remembered in this browser until another ?c= is opened (?c=BONGO goes back).
+(function () {
+  try {
+    const q = new URLSearchParams(location.search).get('c');
+    if (q && /^[A-Za-z0-9]{3,12}$/.test(q)) localStorage.setItem('bt_campaign', q.toUpperCase());
+    const s = localStorage.getItem('bt_campaign');
+    if (s && /^[A-Z0-9]{3,12}$/.test(s)) window.BT_CONFIG.CAMPAIGN_CODE = s;
+  } catch (e) {}
+})();

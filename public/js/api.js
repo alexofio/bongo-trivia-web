@@ -39,7 +39,7 @@
   // a fallback for answers without a code.
   const PORTAL_CODES = { invalid_code: 'invalid_code', expired_code: 'expired_code', too_many_attempts: 'too_many_attempts',
     age_required: 'not_registered', invalid_msisdn: 'invalid_msisdn', payment_pending: 'payment_pending',
-    limit_reached: 'limit_reached', rate_limited: 'rate_limited', payment_required: 'payment_required', unauthenticated: 'unauthenticated' };
+    limit_reached: 'limit_reached', rate_limited: 'rate_limited', payment_required: 'payment_required', unauthenticated: 'unauthenticated', test_only: 'test_only' };
   function codeFor(status, msg, code) {
     if (status === 401) return 'unauthenticated';
     if (code) return PORTAL_CODES[code] || 'server';
@@ -103,7 +103,8 @@
     async categories() {
       try { P.campaign = await call('GET', `/campaigns/${encodeURIComponent(C.CAMPAIGN_CODE)}`); }
       catch (e) { if (e.status === 404) C.CAMPAIGN_STATUS = 'none'; throw e; }   // not published yet: the app shows "coming soon"
-      C.CAMPAIGN_STATUS = P.campaign.campaign.status;                            // ready | live | paused | closed
+      C.CAMPAIGN_STATUS = P.campaign.campaign.status;
+      C.TEST = !!P.campaign.campaign.test;                                       // test campaign: banner, test numbers only                            // ready | live | paused | closed
       applyCampaign(P.campaign);
       return P.campaign.categories;
     },
@@ -194,6 +195,13 @@
       try { return await call('GET', `/me/draw-entries?campaign=${encodeURIComponent(C.CAMPAIGN_CODE)}`); }
       catch (e) { return null; }
     },
+    // Ads for a free play (paid campaigns while payments are collected): offer, next ad, complete, click.
+    async adOffer() { try { return await call('GET', `/ads?campaign=${encodeURIComponent(C.CAMPAIGN_CODE)}`); } catch (e) { return null; } },
+    async nextAd() { return call('POST', '/ads/next', { campaign: C.CAMPAIGN_CODE, device: deviceId() }); },
+    async completeAd(token) { return call('POST', `/ads/${token}/complete`, {}); },
+    async clickAd(token) { return call('POST', `/ads/${token}/click`, {}); },
+    // A round from a free play earned by an ad (the portal uses a paid entry first if one is waiting).
+    async startFreePlay() { const roundId = await startRound(null); const id = 'ad_' + roundId; P.entries[id] = roundId; return { play_id: id, status: 'success', round_id: roundId, free: true }; },
     // Agent link click (once per visit with ?ref=): returns a token used at sign-up.
     async trackClick({ code, campaign, subid, utm }) { const r = await call('POST', '/click', { code, campaign, subid, utm, channel: 'link' }); return r.token; }
   };
