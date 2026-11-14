@@ -52,6 +52,7 @@ bongo-trivia-web/
 | `#login` | Phone number only; unknown number shows "create account" | Verify |
 | `#verify` | 6-digit OTP, auto-submit, resend after 60 s, wrong / expired / locked states | Categories (new) or Play |
 | `#categories` | Pick one or more of 14 categories | Play |
+| (dialog) | **First-time "How to play" walkthrough**, 4 steps: pay TZS 950 from EMglobe (PIN on phone only) · answer 3 questions, 15 s each · 3/3 enters hourly + daily random draws · change categories and SMS in Settings. Opens before the first set; Skip, Back/Next, arrow keys, Esc; replay from Play and Settings | Payment notice ("Play now") or Play |
 | `#play` | Play card "Play 3 questions for TZS 950", chosen categories, draw entries this hour/today, Phase 2 "Watch ads" (disabled, Coming soon) | Payment notice dialog |
 | (dialog) | "You will get a TZS 950 request from EMglobe on +255 …; enter your PIN on your phone only" | Pay |
 | `#pay` | Phone with push, 90 s countdown, polling. States: success, failed, declined, timed out, limit reached; each with Try again | Quiz on success |
@@ -68,12 +69,12 @@ Signed-out visits to app screens redirect to `#login`. Questions never show befo
 |---|---|---|---|---|
 | POST | `/auth/otp/send` | `{msisdn, intent: signup\|login}` | `{request_id, expires_in, resend_in}` | `invalid_msisdn`, `not_registered`, `rate_limited` |
 | POST | `/auth/otp/verify` | `{request_id, msisdn, code, consents?: {terms, terms_version, privacy_version, age_confirmed, sms_marketing}}` | `{user, is_new}` + httpOnly session cookie | `invalid_code` (+`attempts_left`), `expired_code`, `too_many_attempts`, `consent_required` |
-| GET | `/me` | — | `{id, msisdn, msisdn_masked, categories[], sms_marketing, lang}` | 401 |
+| GET | `/me` | — | `{id, msisdn, msisdn_masked, categories[], sms_marketing, lang, tutorial_done}` | 401 |
 | POST | `/auth/logout` | — | `{ok}` | — |
 | GET | `/categories` | — | `[{id, name_sw, name_en}]` | — |
 | PUT | `/me/categories` | `{category_ids[]}` | user | `no_categories` |
 | PUT | `/me/consents` | `{sms_marketing}` | user (log consent change with timestamp + channel) | — |
-| PUT | `/me/preferences` | `{lang}` | user | — |
+| PUT | `/me/preferences` | `{lang}` or `{tutorial_done: true}` | user | — |
 | POST | `/plays` | header `Idempotency-Key` | `{play_id, payment_id, amount: 950, merchant: "EMglobe", status: pending, expires_in}` — sends the USSD push via the aggregator | `limit_reached`, `no_categories`, `network_unsupported` |
 | GET | `/plays/:id/payment` | — | `{status: pending\|success\|failed\|cancelled\|expired, reason, round_id}` | 404 |
 | GET | `/rounds/:id/question` | — | `{index, total, seconds, deadline_at, question: {id, text, category, difficulty, options[{id, text}]}}` | `round_complete` |

@@ -65,7 +65,7 @@
 
   const me = () => { if (!session || !users[session]) throw err(401, 'unauthenticated'); return users[session]; };
   const mask = m => '+255 ' + m.slice(3, 5) + '* *** ' + m.slice(-3);
-  const userOut = u => ({ id: u.id, msisdn: u.msisdn, msisdn_masked: mask(u.msisdn), categories: u.categories, sms_marketing: u.sms_marketing, lang: u.lang });
+  const userOut = u => ({ id: u.id, msisdn: u.msisdn, msisdn_masked: mask(u.msisdn), categories: u.categories, sms_marketing: u.sms_marketing, lang: u.lang, tutorial_done: !!u.tutorial_done });
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -131,7 +131,7 @@
       u.categories = category_ids; save('bt_mock_users', users); return userOut(u);
     },
     async saveConsents({ sms_marketing }) { await wait(400); const u = me(); u.sms_marketing = sms_marketing; save('bt_mock_users', users); return userOut(u); },
-    async savePreferences({ lang }) { const u = me(); u.lang = lang; save('bt_mock_users', users); return userOut(u); },
+    async savePreferences({ lang, tutorial_done }) { const u = me(); if (lang) u.lang = lang; if (tutorial_done) u.tutorial_done = true; save('bt_mock_users', users); return userOut(u); },
 
     async startPlay() {
       await wait(700); const u = me();

@@ -26,7 +26,7 @@
     sendOtp: (msisdn, intent) => mock ? M().sendOtp({ msisdn, intent }) : http('POST', '/auth/otp/send', { msisdn, intent }),
     // POST /auth/otp/verify {request_id, msisdn, code, consents?} -> {user, is_new}; sets session cookie
     verifyOtp: (p) => mock ? M().verifyOtp(p) : http('POST', '/auth/otp/verify', p),
-    // GET /me -> user
+    // GET /me -> user (includes tutorial_done)
     me: () => mock ? M().me() : http('GET', '/me'),
     // POST /auth/logout
     logout: () => mock ? M().logout() : http('POST', '/auth/logout'),
@@ -38,6 +38,8 @@
     saveConsents: (sms) => mock ? M().saveConsents({ sms_marketing: sms }) : http('PUT', '/me/consents', { sms_marketing: sms }),
     // PUT /me/preferences {lang}
     savePreferences: (lang) => mock ? M().savePreferences({ lang }) : http('PUT', '/me/preferences', { lang }),
+    // PUT /me/preferences {tutorial_done: true} — first-time "How to play" walkthrough seen
+    completeTutorial: () => mock ? M().savePreferences({ tutorial_done: true }) : http('PUT', '/me/preferences', { tutorial_done: true }),
     // POST /plays -> {play_id, payment_id, amount, merchant, status:'pending', expires_in}; triggers the mobile-money push
     startPlay: () => mock ? M().startPlay() : http('POST', '/plays', {}, idem()),
     // GET /plays/:id/payment -> {status: pending|success|failed|cancelled|expired, reason, round_id}

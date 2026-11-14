@@ -61,6 +61,72 @@
     $('#langBtn').focus();
   }
 
+
+  // ---------- first-time "How to play" walkthrough ----------
+  // Opens before a player's first set (user.tutorial_done is false) and from the "How to play" links.
+  // Closing it any way (finish, skip, Esc) saves tutorial_done on the account so it shows once.
+  const TOUR_ART = [
+    // 1 pay: phone with the EMglobe push
+    `<svg viewBox="0 0 400 190" aria-hidden="true"><rect x="150" y="18" width="100" height="168" rx="18" fill="#0A1A4A"/><rect x="157" y="26" width="86" height="152" rx="12" fill="#0087F0"/>
+      <rect x="112" y="64" width="176" height="62" rx="12" fill="#fff"/><text x="200" y="86" text-anchor="middle" font-family="Lexend,sans-serif" font-size="12" font-weight="700" fill="#44527A">${esc(C.MERCHANT)}</text>
+      <text x="200" y="106" text-anchor="middle" font-family="Lexend,sans-serif" font-size="15" font-weight="700" fill="#0A1A4A">TZS ${fmt(C.PRICE_TZS)}</text>
+      <g fill="none" stroke="#0A1A4A" stroke-width="2"><circle cx="176" cy="148" r="6"/><circle cx="192" cy="148" r="6"/><circle cx="208" cy="148" r="6"/><circle cx="224" cy="148" r="6"/></g></svg>`,
+    // 2 answer: question card, timer, options
+    `<svg viewBox="0 0 400 190" aria-hidden="true"><rect x="96" y="16" width="208" height="160" rx="16" fill="#fff"/>
+      <rect x="112" y="32" width="176" height="8" rx="4" fill="#EEF3FF"/><rect x="112" y="32" width="110" height="8" rx="4" fill="#023DC1"/>
+      <rect x="112" y="52" width="150" height="10" rx="5" fill="#0A1A4A"/><rect x="112" y="68" width="96" height="10" rx="5" fill="#0A1A4A"/>
+      <g fill="none" stroke="#C9D6F5" stroke-width="2"><rect x="112" y="90" width="176" height="18" rx="6"/><rect x="112" y="138" width="176" height="18" rx="6"/></g>
+      <rect x="112" y="114" width="176" height="18" rx="6" fill="#E3F6EA" stroke="#0B6B35" stroke-width="2"/>
+      <circle cx="320" cy="44" r="22" fill="#FFE22E"/><text x="320" y="50" text-anchor="middle" font-family="Lexend,sans-serif" font-size="16" font-weight="700" fill="#000">${C.QUESTION_SECONDS}s</text></svg>`,
+    // 3 win: three ticks and the prize ribbon
+    `<svg viewBox="0 0 400 190" aria-hidden="true"><g fill="#0B6B35">${[140, 200, 260].map(x => `<circle cx="${x}" cy="66" r="26"/>`).join('')}</g>
+      <g fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">${[140, 200, 260].map(x => `<path d="M${x - 11} 66l7 8 15-17"/>`).join('')}</g>
+      <path d="M36 116h328l-14 22 14 22H36l14-22z" fill="#FFE22E"/><text x="200" y="145" text-anchor="middle" font-family="Lilita One,Lexend,sans-serif" font-size="20" fill="#000">TZS ${fmt(C.PRIZES.hourly)} · TZS ${fmt(C.PRIZES.daily)}</text></svg>`,
+    // 4 ready: category chips
+    `<svg viewBox="0 0 400 190" aria-hidden="true">${[['Soka', 80, 46, 1], ['Historia', 200, 46, 0], ['Sayansi', 320, 46, 1], ['Muziki', 80, 106, 0], ['Afrika', 200, 106, 1], ['Hesabu', 320, 106, 0]].map(([n, x, y, on]) =>
+      `<rect x="${x - 52}" y="${y}" width="104" height="38" rx="19" fill="${on ? '#fff' : 'rgba(255,255,255,.18)'}"/><text x="${x}" y="${y + 25}" text-anchor="middle" font-family="Lexend,sans-serif" font-size="14" font-weight="600" fill="${on ? '#023DC1' : '#fff'}">${n}</text>`).join('')}
+</svg>`
+  ];
+
+  function openTour({ onPlay } = {}) {
+    const n = TOUR_ART.length; let i = 0; let done = false;
+    const d = document.createElement('dialog');
+    d.className = 'tour'; d.setAttribute('aria-labelledby', 'tourH');
+    document.body.appendChild(d);
+    const finish = (play) => {
+      if (done) return; done = true;
+      if (S.user && !S.user.tutorial_done) { S.user.tutorial_done = true; API.completeTutorial().catch(() => {}); }
+      if (d.open) d.close(); d.remove();
+      if (play && onPlay) onPlay();
+    };
+    const draw = () => {
+      const last = i === n - 1;
+      d.innerHTML = `<div class="art">${TOUR_ART[i]}${last ? '' : `<button type="button" class="skip" id="tSkip">${t('tour_skip')}</button>`}</div>
+        <div class="body step-in">
+          <p class="count" aria-live="polite">${t('tour_step', { i: i + 1, n })}</p>
+          <h2 id="tourH" tabindex="-1">${t(`tour_${i + 1}_t`)}</h2>
+          <p>${t(`tour_${i + 1}_b`)}</p>
+          <div class="dots" aria-hidden="true">${Array.from({ length: n }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+          ${last
+            ? `<div class="stack"><button class="btn primary block" id="tPlay">${onPlay ? t('tour_play') : t('tour_done')}</button>${onPlay ? `<button class="btn text block" id="tLater" type="button">${t('tour_later')}</button>` : ''}</div>`
+            : `<div class="nav2">${i ? `<button class="btn ghost" id="tBack" type="button">${t('tour_back')}</button>` : ''}<button class="btn blue" id="tNext">${t('tour_next')}</button></div>`}
+        </div>`;
+      const q = id => d.querySelector('#' + id);
+      q('tSkip') && (q('tSkip').onclick = () => finish(false));
+      q('tBack') && (q('tBack').onclick = () => { i--; draw(); });
+      q('tNext') && (q('tNext').onclick = () => { i++; draw(); });
+      q('tPlay') && (q('tPlay').onclick = () => finish(true));
+      q('tLater') && (q('tLater').onclick = () => finish(false));
+      (q('tNext') || q('tPlay')).focus();
+    };
+    d.addEventListener('cancel', e => { e.preventDefault(); finish(false); }); // Esc
+    d.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' && i < n - 1) { i++; draw(); }
+      if (e.key === 'ArrowLeft' && i > 0) { i--; draw(); }
+    });
+    draw(); d.showModal();
+  }
+
   // ---------- views ----------
   const V = {};
 
@@ -257,7 +323,7 @@
           <p>${t('prize_note')}</p>
           <div class="chips" aria-label="${esc(t('play_from', { cats: '' }))}">${names.map(n => `<span class="chip">${esc(n)}</span>`).join('')}</div>
           <button class="btn primary block" id="playBtn">${t('play_cta')}</button>
-          <p style="margin:12px 0 0;font-size:14px">${t('play_networks')} <a href="#settings" style="color:#fff">${t('play_edit_cats')}</a></p>
+          <p style="margin:12px 0 0;font-size:14px">${t('play_networks')} <a href="#settings" style="color:#fff">${t('play_edit_cats')}</a> · <button type="button" class="btn text" id="howBtn" style="color:#fff;padding:0;min-height:0;font-size:14px">${t('tour_open')}</button></p>
         </section>
         <section aria-labelledby="entH"><h2 id="entH" style="font-size:22px;margin-top:8px">${t('entries_title')}</h2>
           <div class="tally"><div><b id="eh">–</b>${t('entries_hour')}</div><div><b id="ed">–</b>${t('entries_day')}</div></div></section>
@@ -298,7 +364,9 @@
           $('#nErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : errText(er);
         }
       };
+      $('#howBtn').onclick = () => openTour({ onPlay: open });
       if (S.autoNotice) { S.autoNotice = false; open(); }
+      else if (!S.user.tutorial_done) openTour({ onPlay: open });
     }
   };
 
@@ -466,11 +534,13 @@
         <div class="row" style="justify-content:flex-start">
           <button class="btn ${I18N.lang === 'sw' ? 'blue' : 'ghost'}" data-lang="sw" aria-pressed="${I18N.lang === 'sw'}" lang="sw">Kiswahili</button>
           <button class="btn ${I18N.lang === 'en' ? 'blue' : 'ghost'}" data-lang="en" aria-pressed="${I18N.lang === 'en'}" lang="en">English</button></div></section>
+      <section class="sec"><h2>${t('tour_open')}</h2><button class="btn ghost" type="button" id="tourAgain">${t('tour_open')}</button></section>
       <section class="sec"><h2>${t('set_legal')}</h2><p><a href="#terms">${t('footer_terms')}</a><br><a href="#privacy">${t('footer_privacy')}</a></p></section>
       <section class="sec"><button class="btn ghost block" id="logout">${t('set_logout')}</button></section>
     </div>`,
     bind: () => {
       bindCats(null);
+      $('#tourAgain').onclick = () => openTour();
       const sms = $('#sms'), m = $('#smsMsg');
       sms.onchange = async () => {
         sms.disabled = true; const v = sms.checked;
