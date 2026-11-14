@@ -31,17 +31,22 @@
     catch (e) { throw err(0, 'network'); }
     const data = await res.json().catch(() => ({}));
     if (res.status === 401 && P.token) { P.token = null; store.set('bt_token', null); }
-    if (!res.ok) throw err(res.status, codeFor(res.status, data.error || ''), data.error || '');
+    if (!res.ok) throw err(res.status, codeFor(res.status, data.error || '', data.code), data.error || '');
     return data;
   }
-  // The portal answers { error: "<plain sentence>" }. Map the cases the screens branch on to codes; the rest keep
-  // the sentence (shown as-is). Matching on text is a stopgap: see the integration guide, "Error codes".
-  function codeFor(status, msg) {
-    const m = msg.toLowerCase();
+  // The portal answers { error: "<plain sentence>", code: "<stable code>" } (bongo-public.js, 14 Nov 2026). The screens
+  // branch on a few codes; any other code keeps the sentence (shown as-is) under 'server'. Text matching stays only as
+  // a fallback for answers without a code.
+  const PORTAL_CODES = { invalid_code: 'invalid_code', expired_code: 'expired_code', too_many_attempts: 'too_many_attempts',
+    age_required: 'not_registered', invalid_msisdn: 'invalid_msisdn', payment_pending: 'payment_pending',
+    limit_reached: 'limit_reached', rate_limited: 'rate_limited', payment_required: 'payment_required', unauthenticated: 'unauthenticated' };
+  function codeFor(status, msg, code) {
     if (status === 401) return 'unauthenticated';
+    if (code) return PORTAL_CODES[code] || 'server';
+    const m = msg.toLowerCase();
     if (m.includes('code is wrong')) return 'invalid_code';
-    if (m.includes('expired') || m.includes('ask for a new one') || m.includes('already used')) return 'expired_code';
     if (m.includes('too many wrong codes')) return 'too_many_attempts';
+    if (m.includes('expired') || m.includes('ask for a new one') || m.includes('already used')) return 'expired_code';
     if (m.includes('confirm your age')) return 'not_registered';
     if (m.includes('tanzanian mobile')) return 'invalid_msisdn';
     if (m.includes('payment prompt was just sent')) return 'payment_pending';
@@ -51,7 +56,7 @@
     return 'server';
   }
   const e164 = msisdn => '+' + String(msisdn).replace(/^\+/, '');
-  const localPrefs = () => store.get('bt_prefs_' + (P.phone || ''), {});   // categories + tutorial flag until the portal stores them
+  const localPrefs = () => store.get('bt_prefs_' + (P.phone || ''), {});   // device copy of categories + tutorial flag (the portal stores both since 0005)
   const savePrefs = patch => store.set('bt_prefs_' + (P.phone || ''), Object.assign(localPrefs(), patch));
 
   // Portal player → the user object the screens use.
@@ -59,9 +64,9 @@
     const prefs = localPrefs();
     return {
       id: pl.id, msisdn: (P.phone || '').replace('+', ''), msisdn_masked: '',
-      categories: pl.categories || prefs.categories || [],                 // pl.categories once migration 0005 lands
+      categories: (pl.categories && pl.categories.length ? pl.categories : prefs.categories) || [],
       sms_marketing: !!pl.marketing_opt_in, lang: pl.locale || I18N.lang,
-      tutorial_done: !!(pl.tutorial_done_at || prefs.tutorial_done),        // pl.tutorial_done_at once 0005 lands
+      tutorial_done: !!(pl.tutorial_done_at || prefs.tutorial_done),
       status: pl.status, wins: pl.wins || [], campaigns: pl.campaigns || []
     };
   }
@@ -82,12 +87,10 @@
   // Start a round from a paid entry (or free, when payments are off) and remember its first question.
   async function startRound(entryId) {
     const prefs = userCats();
-    const pick = prefs.length ? prefs[Math.floor(Math.random() * prefs.length)] : null;
+    // The portal picks one easy, one medium and one hard question across all the player's categories.
     const r = await call('POST', '/rounds', {
       campaign: C.CAMPAIGN_CODE, entryId: entryId || undefined,
-      category: pick,            // today: one category per round, drawn from the player's choices
-      categories: prefs,         // proposed: portal picks across all of them (guide §6.2)
-      channel: 'web', device: deviceId()
+      categories: prefs, channel: 'web', device: deviceId()
     });
     P.rounds[r.id] = { next: r.question, seconds: r.seconds, items: [], result: null };
     return r.id;
@@ -98,7 +101,9 @@
   const portal = {
     // Load the campaign once at boot; returns categories [{id, name_sw, name_en}] for the pickers.
     async categories() {
-      P.campaign = await call('GET', `/campaigns/${encodeURIComponent(C.CAMPAIGN_CODE)}`);
+      try { P.campaign = await call('GET', `/campaigns/${encodeURIComponent(C.CAMPAIGN_CODE)}`); }
+      catch (e) { if (e.status === 404) C.CAMPAIGN_STATUS = 'none'; throw e; }   // not published yet: the app shows "coming soon"
+      C.CAMPAIGN_STATUS = P.campaign.campaign.status;                            // ready | live | paused | closed
       applyCampaign(P.campaign);
       return P.campaign.categories;
     },
@@ -130,7 +135,7 @@
     async saveCategories(ids) {
       if (!ids.length) throw err(422, 'no_categories');
       savePrefs({ categories: ids });
-      const r = await call('POST', '/me', { categories: ids });     // ignored until 0005; kept on this device meanwhile
+      const r = await call('POST', '/me', { categories: ids });
       const u = userOf(r.player); u.categories = ids; window.API._user = u; return u;
     },
     async saveConsents(sms) { const r = await call('POST', '/me', { marketing: !!sms }); const u = userOf(r.player); window.API._user = u; return u; },
@@ -166,7 +171,7 @@
         q = r.question; seconds = Math.max(1, Math.round(r.msLeft / 1000));
       }
       st.current = q; st.next = null;
-      return { index: q.index + 1, total: q.total, seconds, question: { id: q.index, text: q.text, image: q.image, category: null, difficulty: null, options: q.options.map((t, i) => ({ id: i, text: t })) } };
+      return { index: q.index + 1, total: q.total, seconds, question: { id: q.index, text: q.text, image: q.image, category: q.category ? q.category.id : null, difficulty: q.difficulty || null, options: q.options.map((t, i) => ({ id: i, text: t })) } };
     },
     async answer(roundId, { question_id, option_id }) {
       const st = P.rounds[roundId];
@@ -184,7 +189,7 @@
       return { score: res.correct, total: res.total, qualified: !!res.qualified && allRight, items: st.items,
         draws: res.qualified ? [{ tier: 'hourly', amount: C.PRIZES.hourly }, { tier: 'daily', amount: C.PRIZES.daily }] : [] };
     },
-    // No player endpoint for draw entries yet (guide §6.3). Null hides the tally.
+    // Draw entries now (qualifying rounds this hour and today). Null hides the tally.
     async entries() {
       try { return await call('GET', `/me/draw-entries?campaign=${encodeURIComponent(C.CAMPAIGN_CODE)}`); }
       catch (e) { return null; }

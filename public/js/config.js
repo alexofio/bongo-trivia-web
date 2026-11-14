@@ -4,9 +4,9 @@
 window.BT_CONFIG = {
   // 'mock'   = js/mock-api.js answers every call (demo, no money moves)
   // 'portal' = the Bongo Trivia API in the Bluetrain Portal, same-origin at /bongo-trivia/api (see INTEGRATION.md)
-  MODE: 'mock',
+  MODE: 'portal',
   API_BASE: '/bongo-trivia/api',
-  CAMPAIGN_CODE: 'BONGO',         // [TBC] the live campaign's code in Bongo Trivia → Campaigns
+  CAMPAIGN_CODE: 'BONGO',         // the campaign in Bongo Trivia → Campaigns (created 14 Nov 2026, Ready until the GBT permit)
   PLAY_MODE: 'paid',              // portal mode overwrites this from the campaign: 'paid' | 'off' (free while payments are off) | 'free'
   PRICE_TZS: 950,                 // per set of 3 questions (Alex, 14 Nov 2026)
   MERCHANT: 'EMglobe',            // name shown on the mobile-money push

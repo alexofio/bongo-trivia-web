@@ -4,6 +4,7 @@
   const S = {
     sw: {
       tagline: 'Jua. Jibu. Shinda.',
+      soon_title: 'Inakuja hivi karibuni', soon_body: 'Bongo Trivia itaanza hivi karibuni. Jibu maswali 3, shinda zawadi kila saa na kila siku.', soon_play: 'Mchezo unaanza hivi karibuni',
       lang_switch: 'English',
       lang_switch_label: 'Switch to English',
       nav_play: 'Cheza', nav_settings: 'Mipangilio', nav_login: 'Ingia', nav_signup: 'Jisajili',
@@ -118,6 +119,7 @@
     },
     en: {
       tagline: 'Know it. Answer it. Win it.',
+      soon_title: 'Coming soon', soon_body: 'Bongo Trivia starts soon. Answer 3 questions, win prizes every hour and every day.', soon_play: 'The game starts soon',
       lang_switch: 'Kiswahili',
       lang_switch_label: 'Badili kuwa Kiswahili',
       nav_play: 'Play', nav_settings: 'Settings', nav_login: 'Log in', nav_signup: 'Sign up',

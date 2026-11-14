@@ -323,7 +323,9 @@
           <h1>${t('play_title')}</h1>
           <p>${t('prize_note')}</p>
           <div class="chips" aria-label="${esc(t('play_from', { cats: '' }))}">${names.map(n => `<span class="chip">${esc(n)}</span>`).join('')}</div>
-          <button class="btn primary block" id="playBtn">${C.PLAY_MODE && C.PLAY_MODE !== 'paid' ? t('play_cta_free') : t('play_cta')}</button>
+          ${API.mode === 'portal' && C.CAMPAIGN_STATUS && C.CAMPAIGN_STATUS !== 'live'
+            ? `<button class="btn primary block" id="playBtn" disabled>${t('soon_play')}</button>`
+            : `<button class="btn primary block" id="playBtn">${C.PLAY_MODE && C.PLAY_MODE !== 'paid' ? t('play_cta_free') : t('play_cta')}</button>`}
           <p style="margin:12px 0 0;font-size:14px">${t('play_networks')} <a href="#settings" style="color:#fff">${t('play_edit_cats')}</a> · <button type="button" class="btn text" id="howBtn" style="color:#fff;padding:0;min-height:0;font-size:14px">${t('tour_open')}</button></p>
         </section>
         <section aria-labelledby="entH"><h2 id="entH" style="font-size:22px;margin-top:8px">${t('entries_title')}</h2>
@@ -580,6 +582,13 @@
     let name = current();
     if (!V[name]) name = 'home';
     const v = V[name];
+    // Portal mode before the campaign is published: a "coming soon" page (no sign-up, no SMS), legal pages stay open.
+    if (API.mode === 'portal' && C.CAMPAIGN_STATUS === 'none' && !['terms', 'privacy'].includes(name)) {
+      chrome('home');
+      app.innerHTML = `<div class="col stack"><section class="play-card band"><h1>${t('soon_title')}</h1><p>${t('soon_body')}</p></section></div>`;
+      document.title = 'Bongo Trivia · ' + t('tagline');
+      return;
+    }
     if (v.auth && !S.user) { S.auth.intent = 'login'; return go('login'); }
     if (v.guard) { const g = v.guard(); if (g !== true) return go(g); }
     if (cleanup) { try { cleanup(); } catch (e) {} cleanup = null; }
