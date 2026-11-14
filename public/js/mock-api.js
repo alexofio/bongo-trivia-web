@@ -1,4 +1,4 @@
-/* Demo back end. Same request/response shapes as bt-api (see README "Backend endpoints").
+/* Demo back end. Mirrors the Bluetrain Portal API behaviour (see INTEGRATION.md) so every screen can be tried without the portal.
    Answers stay in here and are never sent before the player answers, mirroring server-side grading.
    Sample questions only: every live question needs Swahili editor approval. */
 {
@@ -6,14 +6,14 @@
   const err = (status, code, extra = {}) => Object.assign(new Error(code), { status, code }, extra);
   const id = p => p + '_' + Math.random().toString(36).slice(2, 10);
 
+  // Same categories as the portal's bt_categories (0001 seed + Bibilia in 0002 + Kiswahili in 0003; Urembo and Kabila left out).
   const CATEGORIES = [
-    ['tanzania', 'Tanzania', 'Tanzania'], ['bibilia', 'Bibilia', 'Bible'], ['michezo', 'Michezo', 'Sports'],
-    ['dunia', 'Dunia', 'World'], ['historia', 'Historia', 'History'], ['ujuzi', 'Ujuzi wa jumla', 'General knowledge'],
-    ['soka', 'Soka', 'Football'], ['hesabu', 'Hesabu', 'Maths'], ['sayansi', 'Sayansi', 'Science'],
-    ['muziki', 'Muziki', 'Music'], ['afrika', 'Afrika', 'Africa'], ['urembo', 'Urembo', 'Beauty'],
-    ['kabila', 'Kabila', 'Languages & heritage'], ['kiingereza', 'Kiingereza', 'English']
+    ['cat_a', 'Tanzania', 'Tanzania'], ['cat_b', 'Bibilia', 'Bible'], ['cat_c', 'Michezo', 'Sports'], ['cat_d', 'Dunia', 'World'], ['cat_e', 'Historia', 'History'],
+    ['cat_f', 'Ujuzi wa jumla', 'General knowledge'], ['cat_g', 'Soka', 'Football'], ['cat_h', 'Hesabu', 'Maths'], ['cat_i', 'Sayansi', 'Science'],
+    ['cat_j', 'Muziki', 'Music'], ['cat_k', 'Afrika', 'Africa'], ['cat_n', 'Kiingereza', 'English'], ['cat_s', 'Kiswahili', 'Kiswahili']
   ].map(([id, sw, en]) => ({ id, name_sw: sw, name_en: en }));
 
+  const CAT_ID = { tanzania: 'cat_a', bibilia: 'cat_b', michezo: 'cat_c', dunia: 'cat_d', historia: 'cat_e', ujuzi: 'cat_f', soka: 'cat_g', hesabu: 'cat_h', sayansi: 'cat_i', muziki: 'cat_j', afrika: 'cat_k', kiingereza: 'cat_n', kiswahili: 'cat_s' };
   // [category, difficulty, [sw question, en question], [[sw, en] x4], correctIndex]
   const BANK = [
     ['tanzania', 'easy', ['Mji mkuu wa Tanzania ni upi?', 'What is the capital city of Tanzania?'], [['Dodoma', 'Dodoma'], ['Dar es Salaam', 'Dar es Salaam'], ['Arusha', 'Arusha'], ['Mwanza', 'Mwanza']], 0],
@@ -44,12 +44,16 @@
     ['afrika', 'easy', ['Mto mrefu zaidi barani Afrika ni upi?', 'What is the longest river in Africa?'], [['Kongo', 'Congo'], ['Naili', 'Nile'], ['Niger', 'Niger'], ['Zambezi', 'Zambezi']], 1],
     ['afrika', 'medium', ['Ziwa kubwa zaidi barani Afrika ni lipi?', 'What is the largest lake in Africa?'], [['Tanganyika', 'Tanganyika'], ['Nyasa', 'Malawi'], ['Viktoria', 'Victoria'], ['Turkana', 'Turkana']], 2],
     ['afrika', 'hard', ['Nchi ipi kati ya hizi haipakani na Tanzania?', 'Which of these countries does not border Tanzania?'], [['Kenya', 'Kenya'], ['Malawi', 'Malawi'], ['Msumbiji', 'Mozambique'], ['Ethiopia', 'Ethiopia']], 3],
-    ['urembo', 'medium', ['Ngozi hutengeneza vitamini ipi inapopata mwanga wa jua?', 'Which vitamin does skin make in sunlight?'], [['Vitamini D', 'Vitamin D'], ['Vitamini C', 'Vitamin C'], ['Vitamini A', 'Vitamin A'], ['Vitamini K', 'Vitamin K']], 0],
-    ['kabila', 'easy', ['Lugha ya taifa ya Tanzania ni ipi?', 'What is the national language of Tanzania?'], [['Kiingereza', 'English'], ['Kiswahili', 'Swahili'], ['Kiarabu', 'Arabic'], ['Kifaransa', 'French']], 1],
-    ['kabila', 'medium', ['Kiswahili kimechukua maneno mengi kutoka lugha gani?', 'Swahili has borrowed many words from which language?'], [['Kichina', 'Chinese'], ['Kirusi', 'Russian'], ['Kiarabu', 'Arabic'], ['Kijapani', 'Japanese']], 2],
+    ['kiswahili', 'easy', ['Kamilisha methali: Haraka haraka haina ___', 'Complete the proverb: Haraka haraka haina ___'], [['baraka', 'baraka'], ['faida', 'faida'], ['mwisho', 'mwisho'], ['maana', 'maana']], 0],
+    ['kiswahili', 'medium', ['Wingi wa neno "kitabu" ni upi?', 'What is the plural of "kitabu"?'], [['mitabu', 'mitabu'], ['vitabu', 'vitabu'], ['matabu', 'matabu'], ['kitabu', 'kitabu']], 1],
     ['kiingereza', 'easy', ['Wingi wa neno "child" kwa Kiingereza ni upi?', 'What is the plural of "child"?'], [['childs', 'childs'], ['childes', 'childes'], ['childer', 'childer'], ['children', 'children']], 3],
     ['kiingereza', 'medium', ['Kinyume cha neno "ancient" ni kipi?', 'What is the opposite of "ancient"?'], [['modern', 'modern'], ['old', 'old'], ['antique', 'antique'], ['aged', 'aged']], 0]
-  ].map((r, i) => ({ id: 'q' + (i + 1), category: r[0], difficulty: r[1], text: r[2], options: r[3], answer: r[4] }));
+  ].map((r, i) => {
+    // The portal uses 3 options (A, B, C): keep the right answer and the first two wrong ones.
+    const right = r[3][r[4]], opts = [right, ...r[3].filter((_, k) => k !== r[4]).slice(0, 2)];
+    const order = [0, 1, 2].sort(() => Math.random() - .5);
+    return { id: 'q' + (i + 1), category: CAT_ID[r[0]], difficulty: r[1], text: r[2], options: order.map(k => opts[k]), answer: order.indexOf(0) };
+  });
 
   // ---- persisted demo state (one browser only) ----
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
@@ -82,7 +86,7 @@
     while (out.length < BT_CONFIG.QUESTIONS_PER_SET) out.push(pick(pool.filter(q => !out.includes(q))));
     out.forEach(q => seen.add(q.id));
     // shuffle option order per player
-    return shuffle(out).map(q => ({ ...q, order: shuffle([0, 1, 2, 3]) }));
+    return shuffle(out).map(q => ({ ...q, order: shuffle(q.options.map((_, k) => k)) }));
   }
 
   const L = () => (I18N.lang === 'en' ? 1 : 0);

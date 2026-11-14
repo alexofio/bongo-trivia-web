@@ -1,6 +1,6 @@
 # Bongo Trivia — player website (front end)
 
-Built 14 Nov 2026 from Prompt Library v7. Vanilla HTML, CSS and JavaScript: no framework, no build step. Swahili first, English toggle. Runs fully on a mock back end today; switch `USE_MOCK` to `false` in `js/config.js` to call `bt-api`.
+Built 14 Nov 2026. Vanilla HTML, CSS and JavaScript: no framework, no build step. Swahili first, English toggle. Runs on a demo back end (`MODE: 'mock'`) or on the Bluetrain Portal's Bongo Trivia API (`MODE: 'portal'`); see INTEGRATION.md.
 
 Live at **https://bongotrivia.co.tz** (Cloudflare Worker `bongo-trivia-web`). Promoter: Bluetrain Consultancy Ltd. Payment push merchant: EMglobe.
 
@@ -18,7 +18,7 @@ Worker `bongo-trivia-web` serves `public/` with Workers Static Assets and owns t
 - **From a laptop:** `npx wrangler login` once, then `npm run deploy`.
 - **On every push to main:** either connect this repo in Cloudflare (Workers & Pages → bongo-trivia-web → Settings → Builds), or use `.github/workflows/deploy.yml` with repo secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Use one, not both.
 
-`/api/*` runs `worker/index.js` first. Until `bt-api` exists it returns `503 api_not_live` and the site runs on the in-browser mock (`USE_MOCK: true` in `public/js/config.js`). To go live: deploy `bt-api`, add `"services": [{ "binding": "BT_API", "service": "bt-api" }]` to `wrangler.jsonc`, set `USE_MOCK: false`, and remove the `X-Robots-Tag` line in `public/_headers` and the `Disallow` in `public/robots.txt`.
+`/bongo-trivia/*` and `/r/*` run `worker/index.js` first: API calls go to the portal through the `PORTAL` binding, and agent links become `?ref=` for the app. To go live follow INTEGRATION.md §3: set `MODE: 'portal'` and `CAMPAIGN_CODE`, move the domain off the portal Worker, and remove the noindex lines.
 
 Security headers (CSP, HSTS, nosniff, frame and permissions policy) are set in `public/_headers`.
 
@@ -27,7 +27,7 @@ Security headers (CSP, HSTS, nosniff, frame and permissions policy) are set in `
 ```
 bongo-trivia-web/
 ├── wrangler.jsonc    Worker config: static assets, custom domains, /api/* routing
-├── worker/index.js   www → apex redirect; /api/* → bt-api service binding (503 until it exists)
+├── worker/index.js   www → apex; /bongo-trivia/* → portal (PORTAL binding); /r/CODE agent links → ?ref=
 ├── .github/workflows/deploy.yml   Optional CI deploy
 └── public/
 ├── _headers          Security and cache headers; noindex during demo
@@ -35,10 +35,10 @@ bongo-trivia-web/
 ├── img/              Logos (white for blue backgrounds, blue for white), app icons, share image (FB cover)
 ├── index.html        Shell: header band, <main id="app">, live region, footer, script order
 ├── css/styles.css    Brand tokens (royal blue gradient, ribbon yellow), light + dark theme, all components
-├── js/config.js      Price, merchant, timers, prize amounts, [TBC] legal values, USE_MOCK switch
+├── js/config.js      MODE, CAMPAIGN_CODE, price, timers, prizes (campaign overrides in portal mode), [TBC] legal values
 ├── js/i18n.js        Every interface string in Swahili and English; I18N.t(key, vars)
-├── js/api.js         One function per backend endpoint; routes to the mock when USE_MOCK is true
-├── js/mock-api.js    Demo back end with the same shapes: OTP, consents, payments, 33 sample questions, grading
+├── js/api.js         Adapter: same functions for mock and portal modes (INTEGRATION.md §4)
+├── js/mock-api.js    Demo back end mirroring the portal: 3 options, portal category ids, payments, grading
 ├── js/legal.js       Terms and Conditions + Privacy Policy drafts
 └── js/app.js         Hash router, views, timers, accessibility handling
 ```
@@ -63,38 +63,22 @@ bongo-trivia-web/
 
 Signed-out visits to app screens redirect to `#login`. Questions never show before the payment status is `success`; the round id only comes back from the payment status call.
 
-## Backend endpoints (bt-api, base `/api/v1`)
+## Back end
 
-| Method | Path | Body | Returns | Errors |
-|---|---|---|---|---|
-| POST | `/auth/otp/send` | `{msisdn, intent: signup\|login}` | `{request_id, expires_in, resend_in}` | `invalid_msisdn`, `not_registered`, `rate_limited` |
-| POST | `/auth/otp/verify` | `{request_id, msisdn, code, consents?: {terms, terms_version, privacy_version, age_confirmed, sms_marketing}}` | `{user, is_new}` + httpOnly session cookie | `invalid_code` (+`attempts_left`), `expired_code`, `too_many_attempts`, `consent_required` |
-| GET | `/me` | — | `{id, msisdn, msisdn_masked, categories[], sms_marketing, lang, tutorial_done}` | 401 |
-| POST | `/auth/logout` | — | `{ok}` | — |
-| GET | `/categories` | — | `[{id, name_sw, name_en}]` | — |
-| PUT | `/me/categories` | `{category_ids[]}` | user | `no_categories` |
-| PUT | `/me/consents` | `{sms_marketing}` | user (log consent change with timestamp + channel) | — |
-| PUT | `/me/preferences` | `{lang}` or `{tutorial_done: true}` | user | — |
-| POST | `/plays` | header `Idempotency-Key` | `{play_id, payment_id, amount: 950, merchant: "EMglobe", status: pending, expires_in}` — sends the USSD push via the aggregator | `limit_reached`, `no_categories`, `network_unsupported` |
-| GET | `/plays/:id/payment` | — | `{status: pending\|success\|failed\|cancelled\|expired, reason, round_id}` | 404 |
-| GET | `/rounds/:id/question` | — | `{index, total, seconds, deadline_at, question: {id, text, category, difficulty, options[{id, text}]}}` | `round_complete` |
-| POST | `/rounds/:id/answers` | `{question_id, option_id\|null}` | `{correct, timed_out, correct_option_id, next}` | `out_of_order` |
-| GET | `/rounds/:id/result` | — | `{score, total, qualified, items[], draws[]}` | — |
-| GET | `/me/entries` | — | `{hourly_current, daily}` | — |
-| POST | `/callbacks/payment` | aggregator payload (server to server, signed) | flips the play to success/failed; creates the round | — |
+The game back end is the Bongo Trivia module of the **Bluetrain Portal** (`alexofio/bluetrain-portal`, D1 `bongo-trivia`). The website reaches it same-origin at `/bongo-trivia/api/*` through the Worker's `PORTAL` service binding. **See [INTEGRATION.md](INTEGRATION.md)** for the architecture, go-live checklist, website ↔ portal API mapping, endpoint details and proposed portal changes.
 
-Server rules the front end relies on: questions picked server-side at random across the player's categories and difficulty, no repeats per session; option order shuffled per player with opaque option ids; deadline enforced on the server (client bar is display only); grading server-side; draw entry written only when all 3 are correct; entry caps per MSISDN return `limit_reached`.
+`public/js/config.js` → `MODE: 'mock'` (demo, code 123456) or `'portal'` (live), plus `CAMPAIGN_CODE`.
 
 ## Assumptions
 
 - Framework: none. Plain ES2020, works on low-end Android Chrome; no bundle to ship.
-- 15 seconds per question (from the v3 round standard); change `QUESTION_SECONDS`.
+- In portal mode the campaign sets price, questions per round, seconds per question and prize amounts.
 - 90 s payment wait before "timed out"; poll every 2 s.
 - 18+ confirmation added at sign-up: MSISDN KYC proves the line owner, not age.
 - Login with an unregistered number is refused and offers sign-up; sign-up with a registered number just logs in.
 - Language preference saved to the account.
 - Logo from Bongo-Profile1/2 PNGs (14 Nov); FB cover is the social share image.
-- 33 sample questions are illustrative and need Swahili editor approval.
+- Demo questions are illustrative; live questions come from the portal's Questions module.
 
 ## Decided (14 Nov 2026)
 

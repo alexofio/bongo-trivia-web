@@ -29,7 +29,7 @@
     clearTimeout(toast.t); toast.t = setTimeout(() => (h.innerHTML = ''), 3200);
   }
   const catName = c => (I18N.lang === 'en' ? c.name_en : c.name_sw);
-  const errText = e => ({ network: t('err_network'), rate_limited: t('err_rate'), too_many_requests: t('err_rate') }[e.code] || t('err_network'));
+  const errText = e => ({ network: t('err_network'), rate_limited: t('err_rate'), too_many_requests: t('err_rate'), limit_reached: t('pay_limit') }[e.code] || (e.code === 'server' && e.message) || t('err_network'));
   const busy = (btn, on, label) => { btn.disabled = on; btn.innerHTML = on ? `<span class="spin" aria-hidden="true"></span>${esc(label)}` : esc(btn.dataset.label); };
   const go = v => { if (location.hash.slice(1) === v) route(); else location.hash = v; };
 
@@ -47,7 +47,7 @@
       <p><span class="badge18" aria-hidden="true">18+</span>${t('footer_18')}</p>
       <p>${t('footer_operator')}</p>`;
     $('#helpLink').onclick = e => { e.preventDefault(); toast(`${t('footer_help')}: ${C.SUPPORT_PHONE} · ${C.SUPPORT_EMAIL}`); };
-    const b = $('#demoBanner'); b.hidden = !C.USE_MOCK; b.textContent = t('demo_banner');
+    const b = $('#demoBanner'); b.hidden = C.MODE !== 'mock'; b.textContent = t('demo_banner');
     $('#skipLink').textContent = t('skip');
     document.documentElement.lang = I18N.lang;
   }
@@ -269,7 +269,8 @@
           go(S.user.categories.length ? 'play' : 'categories');
         } catch (er) {
           busy(btn, false); code.setAttribute('aria-invalid', 'true'); code.select();
-          ce.textContent = er.code === 'invalid_code' ? t('code_err_invalid', { n: er.attempts_left })
+          if (er.code === 'not_registered') { ce.innerHTML = `${t('not_registered')} <a href="#signup">${t('open_account')}</a>`; return; }
+          ce.textContent = er.code === 'invalid_code' ? (er.attempts_left != null ? t('code_err_invalid', { n: er.attempts_left }) : t('code_err_wrong'))
             : er.code === 'expired_code' ? t('code_err_expired')
             : er.code === 'too_many_attempts' ? t('code_err_locked') : errText(er);
         }
@@ -322,7 +323,7 @@
           <h1>${t('play_title')}</h1>
           <p>${t('prize_note')}</p>
           <div class="chips" aria-label="${esc(t('play_from', { cats: '' }))}">${names.map(n => `<span class="chip">${esc(n)}</span>`).join('')}</div>
-          <button class="btn primary block" id="playBtn">${t('play_cta')}</button>
+          <button class="btn primary block" id="playBtn">${C.PLAY_MODE && C.PLAY_MODE !== 'paid' ? t('play_cta_free') : t('play_cta')}</button>
           <p style="margin:12px 0 0;font-size:14px">${t('play_networks')} <a href="#settings" style="color:#fff">${t('play_edit_cats')}</a> · <button type="button" class="btn text" id="howBtn" style="color:#fff;padding:0;min-height:0;font-size:14px">${t('tour_open')}</button></p>
         </section>
         <section aria-labelledby="entH"><h2 id="entH" style="font-size:22px;margin-top:8px">${t('entries_title')}</h2>
@@ -349,10 +350,16 @@
       </dialog>`;
     },
     bind: () => {
-      API.entries().then(e => { $('#eh') && ($('#eh').textContent = e.hourly_current); $('#ed') && ($('#ed').textContent = e.daily); }).catch(() => {});
+      API.entries().then(e => { const sec = $('#entH') && $('#entH').closest('section'); if (!e) { if (sec) sec.hidden = true; return; } $('#eh') && ($('#eh').textContent = e.hourly_current); $('#ed') && ($('#ed').textContent = e.daily); }).catch(() => {});
       bindDemo();
       const dlg = $('#notice');
-      const open = () => { $('#nErr').textContent = ''; dlg.showModal(); $('#nOk').focus(); };
+      // Payments switched off (or a free campaign): no payment request, straight to the questions.
+      const freePlay = async () => {
+        const btn = $('#playBtn'); btn.disabled = true; $('#playErr').textContent = '';
+        try { const r = await API.startPlay(); S.play = { play_id: r.play_id, startedAt: Date.now() }; S.roundId = r.round_id; S.marks = []; go('quiz'); }
+        catch (er) { btn.disabled = false; $('#playErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : errText(er); }
+      };
+      const open = () => { if (C.PLAY_MODE && C.PLAY_MODE !== 'paid') return freePlay(); $('#nErr').textContent = ''; dlg.showModal(); $('#nOk').focus(); };
       $('#playBtn').onclick = open;
       $('#nNo').onclick = () => { dlg.close(); $('#playBtn').focus(); };
       $('#nOk').onclick = async () => {
@@ -361,7 +368,7 @@
         catch (er) {
           busy(btn, false);
           if (er.code === 'no_categories') { dlg.close(); return go('categories'); }
-          $('#nErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : errText(er);
+          $('#nErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : er.code === 'payment_pending' ? t('pay_wait_body') : errText(er);
         }
       };
       $('#howBtn').onclick = () => openTour({ onPlay: open });
@@ -371,7 +378,7 @@
   };
 
   // Demo-only control: pick what the fake aggregator does with the next payment.
-  const demoPanel = () => !C.USE_MOCK ? '' : `<div class="demo-pay"><span class="hint">${t('demo_pay')}</span><div class="seg" id="demoSeg">
+  const demoPanel = () => C.MODE !== 'mock' ? '' : `<div class="demo-pay"><span class="hint">${t('demo_pay')}</span><div class="seg" id="demoSeg">
       ${['success', 'failed', 'cancelled', 'expired', 'limit'].map(o => `<button type="button" data-o="${o}" aria-pressed="${BTMock.outcome === o}">${t('demo_' + o)}</button>`).join('')}</div></div>`;
   const bindDemo = () => { const s = $('#demoSeg'); if (!s) return; s.onclick = e => { const b = e.target.closest('button'); if (!b) return; BTMock.setOutcome(b.dataset.o); s.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); }; };
 
@@ -438,11 +445,13 @@
         let d;
         try { d = await API.question(S.roundId); } catch (er) { if (er.code === 'round_complete') return go('result'); $('#q').innerHTML = `<p class="msg bad">${errText(er)}</p>`; return; }
         if (!alive) return;
-        const q = d.question, diff = t('diff_' + q.difficulty), cat = S.categories.find(c => c.id === q.category);
+        const q = d.question, cat = q.category && S.categories.find(c => c.id === q.category);
+        const meta = [cat ? catName(cat) : '', q.difficulty ? t('diff_' + q.difficulty) : ''].filter(Boolean).join(' · ');
         $('#q').innerHTML = `${pips(d.total, d.index - 1)}
           <div class="qcard">
-            <div class="qmeta"><span>${t('q_of', { i: d.index, n: d.total })}</span><span>${esc(cat ? catName(cat) : q.category)} · ${diff}</span></div>
+            <div class="qmeta"><span>${t('q_of', { i: d.index, n: d.total })}</span><span>${esc(meta)}</span></div>
             <h1 class="qtext" id="qt" tabindex="-1">${esc(q.text)}</h1>
+            ${q.image ? `<img src="${esc(q.image)}" alt="" style="max-width:100%;border-radius:12px;margin:0 0 14px">` : ''}
             <div class="timer"><span class="sr">${t('q_time_left')}</span><div class="track"><i id="bar"></i></div><b id="secs" aria-hidden="true"></b></div>
             <div class="opts" role="group" aria-labelledby="qt">${q.options.map((o, i) => `<button class="opt-btn" data-id="${esc(o.id)}"><b aria-hidden="true">${L[i]}</b><span>${esc(o.text)}</span></button>`).join('')}</div>
             <div class="feedback" id="fb" role="status"></div>
@@ -472,7 +481,7 @@
           catch (er) { $('#fb').innerHTML = `<span class="err">${errText(er)}</span>`; return; }
           if (!alive) return;
           S.marks.push(r.correct);
-          const right = btns.find(b => b.dataset.id === r.correct_option_id);
+          const right = btns.find(b => b.dataset.id === String(r.correct_option_id));
           right && right.classList.add('right');
           if (btn && !r.correct) btn.classList.add('wrong');
           const msg = r.correct ? t('q_correct') : r.timed_out ? t('q_timeout') : t('q_wrong');

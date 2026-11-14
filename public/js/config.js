@@ -1,8 +1,13 @@
 /* Bongo Trivia — player web: runtime settings.
-   Switch USE_MOCK to false once bt-api is live; everything else reads from here. */
+   Set MODE to 'portal' and CAMPAIGN_CODE to the live campaign to connect to the Bluetrain Portal.
+   In portal mode, price, questions, seconds and prize amounts are read from the campaign at start-up. */
 window.BT_CONFIG = {
-  USE_MOCK: true,                 // true = js/mock-api.js answers every call (demo)
-  API_BASE: '/api/v1',            // served by Worker bt-api behind bt-web
+  // 'mock'   = js/mock-api.js answers every call (demo, no money moves)
+  // 'portal' = the Bongo Trivia API in the Bluetrain Portal, same-origin at /bongo-trivia/api (see INTEGRATION.md)
+  MODE: 'mock',
+  API_BASE: '/bongo-trivia/api',
+  CAMPAIGN_CODE: 'BONGO',         // [TBC] the live campaign's code in Bongo Trivia → Campaigns
+  PLAY_MODE: 'paid',              // portal mode overwrites this from the campaign: 'paid' | 'off' (free while payments are off) | 'free'
   PRICE_TZS: 950,                 // per set of 3 questions (Alex, 14 Nov 2026)
   MERCHANT: 'EMglobe',            // name shown on the mobile-money push
   QUESTIONS_PER_SET: 3,
