@@ -29,7 +29,7 @@
     clearTimeout(toast.t); toast.t = setTimeout(() => (h.innerHTML = ''), 3200);
   }
   const catName = c => (I18N.lang === 'en' ? c.name_en : c.name_sw);
-  const errText = e => ({ network: t('err_network'), rate_limited: t('err_rate'), too_many_requests: t('err_rate'), limit_reached: t('pay_limit'), test_only: t('err_test_only') }[e.code] || (e.code === 'server' && e.message) || t('err_network'));
+  const errText = e => ({ network: t('err_network'), rate_limited: t('err_rate'), too_many_requests: t('err_rate'), limit_reached: t('pay_limit'), test_only: t('err_test_only') }[e.code] || (e.code !== 'network' && e.message) || t('err_network'));
   const busy = (btn, on, label) => { btn.disabled = on; btn.innerHTML = on ? `<span class="spin" aria-hidden="true"></span>${esc(label)}` : esc(btn.dataset.label); };
   const go = v => { if (location.hash.slice(1) === v) route(); else location.hash = v; };
 
@@ -433,7 +433,7 @@
       };
       adCard();
       $('#howBtn').onclick = () => openTour({ onPlay: open });
-      if (S.autoNotice) { S.autoNotice = false; open(); }
+      if (S.autoNotice) { S.autoNotice = false; (API.mode === 'portal' && C.PLAY_MODE === 'paid' ? API.paidRounds().then(n => { paidLeft = n; open(); }) : open()); }
       else if (!S.user.tutorial_done) openTour({ onPlay: open });
     }
   };
@@ -589,6 +589,16 @@
           ${it.correct ? '' : `<small>${t('res_right')}: ${esc(it.correct_answer)}</small>`}</div></li>`).join('')}</ol>`;
       $('#rh').focus(); announce(r.qualified ? t('res_win_title') : t('res_lose_title', { score: r.score }));
       $('#again').onclick = () => { S.autoNotice = true; go('play'); };
+      // Paid rounds still waiting: play the next one straight away, until they're used up.
+      if (API.mode === 'portal' && C.PLAY_MODE === 'paid') API.paidRounds().then(n => {
+        const b = $('#again'); if (!b || n < 1) return;
+        b.textContent = t('res_next_paid', { n });
+        b.onclick = async () => {
+          b.disabled = true;
+          try { const r = await API.playPaid(); S.play = { play_id: r.play_id, startedAt: Date.now() }; S.roundId = r.round_id; S.marks = []; go('quiz'); }
+          catch (er) { b.disabled = false; toast(errText(er)); }
+        };
+      });
     }
   };
 

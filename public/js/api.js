@@ -42,7 +42,7 @@
     limit_reached: 'limit_reached', rate_limited: 'rate_limited', payment_required: 'payment_required', unauthenticated: 'unauthenticated', test_only: 'test_only', rounds_waiting: 'rounds_waiting' };
   function codeFor(status, msg, code) {
     if (status === 401) return 'unauthenticated';
-    if (code) return PORTAL_CODES[code] || 'server';
+    if (code) return PORTAL_CODES[code] || code;             // other portal codes (round_open, no_questions…) pass through
     const m = msg.toLowerCase();
     if (m.includes('code is wrong')) return 'invalid_code';
     if (m.includes('too many wrong codes')) return 'too_many_attempts';
@@ -88,10 +88,20 @@
   async function startRound(entryId) {
     const prefs = userCats();
     // The portal picks one easy, one medium and one hard question across all the player's categories.
-    const r = await call('POST', '/rounds', {
-      campaign: C.CAMPAIGN_CODE, entryId: entryId || undefined,
-      categories: prefs, channel: 'web', device: deviceId()
-    });
+    let r;
+    try {
+      r = await call('POST', '/rounds', {
+        campaign: C.CAMPAIGN_CODE, entryId: entryId || undefined,
+        categories: prefs, channel: 'web', device: deviceId()
+      });
+    } catch (e) {
+      // A round is still open (phone locked, page closed mid-round): carry on with it instead of starting another.
+      if (e.code !== 'round_open') throw e;
+      const a = await call('GET', `/rounds/active?campaign=${encodeURIComponent(C.CAMPAIGN_CODE)}`).catch(() => null);
+      if (!a || !a.round) throw e;
+      P.rounds[a.round.id] = { items: [], result: null };
+      return a.round.id;
+    }
     P.rounds[r.id] = { next: r.question, seconds: r.seconds, items: [], result: null };
     return r.id;
   }
