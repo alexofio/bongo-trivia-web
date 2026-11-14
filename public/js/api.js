@@ -39,7 +39,7 @@
   // a fallback for answers without a code.
   const PORTAL_CODES = { invalid_code: 'invalid_code', expired_code: 'expired_code', too_many_attempts: 'too_many_attempts',
     age_required: 'not_registered', invalid_msisdn: 'invalid_msisdn', payment_pending: 'payment_pending',
-    limit_reached: 'limit_reached', rate_limited: 'rate_limited', payment_required: 'payment_required', unauthenticated: 'unauthenticated', test_only: 'test_only' };
+    limit_reached: 'limit_reached', rate_limited: 'rate_limited', payment_required: 'payment_required', unauthenticated: 'unauthenticated', test_only: 'test_only', rounds_waiting: 'rounds_waiting' };
   function codeFor(status, msg, code) {
     if (status === 401) return 'unauthenticated';
     if (code) return PORTAL_CODES[code] || 'server';
@@ -157,7 +157,11 @@
     async paymentStatus(playId) {
       if (P.entries[playId]) return { status: 'success', round_id: P.entries[playId] };
       const { entry } = await call('GET', `/entries/${playId}`);
-      if (entry.status === 'paid') { const rid = await startRound(entry.id); P.entries[playId] = rid; return { status: 'success', round_id: rid }; }
+      if (entry.status === 'paid') {
+        // Paid: start the round. If it can't start now (e.g. the hourly limit), the paid round is kept for later.
+        try { const rid = await startRound(entry.id); P.entries[playId] = rid; return { status: 'success', round_id: rid }; }
+        catch (e) { return { status: 'saved', reason: e.code }; }
+      }
       if (entry.status === 'failed') return { status: /cancel|declin|reject/i.test(entry.error || '') ? 'cancelled' : 'failed', reason: entry.error };
       if (entry.status === 'expired') return { status: 'expired' };
       return { status: 'pending' };
@@ -195,6 +199,9 @@
       try { return await call('GET', `/me/draw-entries?campaign=${encodeURIComponent(C.CAMPAIGN_CODE)}`); }
       catch (e) { return null; }
     },
+    // Paid rounds already bought and not yet played (they never expire once paid).
+    async paidRounds() { if (C.PLAY_MODE !== 'paid') return 0; try { return (await call('GET', `/entries?campaign=${encodeURIComponent(C.CAMPAIGN_CODE)}`)).roundsLeft || 0; } catch (e) { return 0; } },
+    async playPaid() { const roundId = await startRound(null); const id = 'paid_' + roundId; P.entries[id] = roundId; return { play_id: id, status: 'success', round_id: roundId }; },
     // Ads for a free play (paid campaigns while payments are collected): offer, next ad, complete, click.
     async adOffer() { try { return await call('GET', `/ads?campaign=${encodeURIComponent(C.CAMPAIGN_CODE)}`); } catch (e) { return null; } },
     async nextAd() { return call('POST', '/ads/next', { campaign: C.CAMPAIGN_CODE, device: deviceId() }); },

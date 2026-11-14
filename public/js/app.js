@@ -371,7 +371,14 @@
         try { const r = await API.startPlay(); S.play = { play_id: r.play_id, startedAt: Date.now() }; S.roundId = r.round_id; S.marks = []; go('quiz'); }
         catch (er) { btn.disabled = false; $('#playErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : errText(er); }
       };
-      const open = () => { if (C.PLAY_MODE && C.PLAY_MODE !== 'paid') return freePlay(); $('#nErr').textContent = ''; dlg.showModal(); $('#nOk').focus(); };
+      let paidLeft = 0;
+      const playPaid = async () => {
+        const btn = $('#playBtn'); btn.disabled = true; $('#playErr').textContent = '';
+        try { const r = await API.playPaid(); S.play = { play_id: r.play_id, startedAt: Date.now() }; S.roundId = r.round_id; S.marks = []; go('quiz'); }
+        catch (er) { btn.disabled = false; $('#playErr').textContent = er.code === 'limit_reached' ? t('paid_wait_limit') : errText(er); }
+      };
+      const open = () => { if (C.PLAY_MODE && C.PLAY_MODE !== 'paid') return freePlay(); if (paidLeft > 0) return playPaid(); $('#nErr').textContent = ''; dlg.showModal(); $('#nOk').focus(); };
+      if (API.mode === 'portal' && C.PLAY_MODE === 'paid' && C.CAMPAIGN_STATUS === 'live') API.paidRounds().then(n => { paidLeft = n; const b = $('#playBtn'); if (n > 0 && b) b.textContent = t('play_paid_waiting', { n }); });
       $('#playBtn').onclick = open;
       $('#nNo').onclick = () => { dlg.close(); $('#playBtn').focus(); };
       $('#nOk').onclick = async () => {
@@ -380,7 +387,7 @@
         catch (er) {
           busy(btn, false);
           if (er.code === 'no_categories') { dlg.close(); return go('categories'); }
-          $('#nErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : er.code === 'payment_pending' ? t('pay_wait_body') : errText(er);
+          $('#nErr').textContent = er.code === 'limit_reached' ? t('pay_limit') : er.code === 'payment_pending' ? t('pay_wait_body') : er.code === 'rounds_waiting' ? t('paid_waiting_first') : errText(er);
         }
       };
       // Watch an ad for a free play (portal, paid campaigns while payments are collected).
@@ -452,12 +459,19 @@
     bind: () => {
       let stop = false;
       const total = C.PAYMENT_TIMEOUT_SECONDS * 1000;
-      const end = (state) => {
+      const end = (state, extra) => {
         stop = true; $('#pf').classList.add('done');
         if (state === 'success') {
           $('#payH').textContent = t('pay_success');
           $('#payBody').innerHTML = `<p class="msg ok">${t('pay_success')}</p>`; announce(t('pay_success'));
           return setTimeout(() => go('quiz'), 1200);
+        }
+        if (state === 'saved') {
+          // Money received but the round couldn't start now: it stays paid and can be played later.
+          S.play = null; $('#payH').textContent = t('pay_success');
+          $('#payBody').innerHTML = `<p class="msg ok" role="alert">${t(extra === 'limit_reached' ? 'pay_saved_limit' : 'pay_saved')}</p>
+            <div class="stack" style="margin-top:18px"><a class="btn primary block" href="#play">${t('pay_back')}</a></div>`;
+          announce(t('pay_saved')); return;
         }
         const key = { failed: 'pay_failed', cancelled: 'pay_cancelled', expired: 'pay_expired', limit: 'pay_limit' }[state] || 'pay_failed';
         S.play = null;
@@ -478,7 +492,7 @@
           const r = await API.paymentStatus(S.play.play_id);
           if (stop) return;
           if (r.status === 'success') { S.roundId = r.round_id; S.marks = []; return end('success'); }
-          if (r.status !== 'pending') return end(r.status);
+          if (r.status !== 'pending') return end(r.status, r.reason);
         } catch (er) { /* transient: keep polling until timeout */ }
         setTimeout(poll, C.POLL_MS);
       };

@@ -61,6 +61,7 @@
       entries_title: 'Nafasi zako kwenye droo',
       entries_hour: 'Saa hii', entries_day: 'Leo',
       ads_title: 'Tazama matangazo, pata maswali ya bure', ads_body: 'Tazama tangazo fupi upate nafasi ya kucheza bila kulipa.', ads_soon: 'Inakuja hivi karibuni',
+      pay_saved: 'Malipo yamepokelewa. Raundi uliyolipia imehifadhiwa; icheze wakati wowote.', pay_saved_limit: 'Malipo yamepokelewa. Umefikia kikomo cha raundi kwa saa hii, kwa hiyo raundi uliyolipia imehifadhiwa: icheze saa ijayo.', play_paid_waiting: 'Cheza raundi uliyolipia ({n})', paid_wait_limit: 'Raundi uliyolipia imehifadhiwa. Umefikia kikomo cha saa hii: icheze saa ijayo.', paid_waiting_first: 'Una raundi ulizolipia ambazo bado hujacheza. Zicheze kwanza.',
       ads_watch: 'Tazama tangazo', ads_left: 'Matangazo {n} yamebaki leo.', ads_none: 'Hakuna tangazo kwa sasa. Jaribu tena baadaye.', ads_limit: 'Umetazama matangazo yote ya leo. Rudi kesho.', ads_have: 'Una nafasi {n} ya kucheza bure (inaisha baada ya saa 24).', ads_play_free: 'Cheza bure sasa', ads_wait: 'Subiri sekunde {s}…', ads_done: 'Hongera! Umepata nafasi 1 ya kucheza bure.', ads_more: 'Jifunze zaidi', ads_close: 'Funga', ads_from: 'Tangazo · {name}', ads_unfinished: 'Tazama tangazo hadi mwisho ili upate nafasi ya bure.',
       // pay
       notice_title: 'Ombi la malipo linakuja',
@@ -175,6 +176,7 @@
       entries_title: 'Your draw entries',
       entries_hour: 'This hour', entries_day: 'Today',
       ads_title: 'Watch ads, earn free questions', ads_body: 'Watch a short ad for a chance to play without paying.', ads_soon: 'Coming soon',
+      pay_saved: 'Payment received. Your paid round is saved; play it any time.', pay_saved_limit: "Payment received. You've reached this hour's round limit, so your paid round is saved: play it next hour.", play_paid_waiting: 'Play your paid round ({n})', paid_wait_limit: "Your paid round is saved. You've reached this hour's limit: play it next hour.", paid_waiting_first: 'You have paid rounds you haven\'t played yet. Play them first.',
       ads_watch: 'Watch an ad', ads_left: '{n} ads left today.', ads_none: 'No ad to show right now. Try again later.', ads_limit: "You've watched today's ads. Come back tomorrow.", ads_have: 'You have {n} free play(s) (valid for 24 hours).', ads_play_free: 'Play free now', ads_wait: 'Wait {s} seconds…', ads_done: 'Well done! You earned 1 free play.', ads_more: 'Learn more', ads_close: 'Close', ads_from: 'Ad · {name}', ads_unfinished: 'Watch the ad to the end to earn a free play.',
       notice_title: 'A payment request is coming',
       notice_body: 'You will get a TZS {price} payment request from {merchant} on {phone}. Approve it with your mobile money PIN to start your questions.',
