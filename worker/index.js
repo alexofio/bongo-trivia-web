@@ -1,18 +1,28 @@
 // bongo-trivia-web Worker (bongotrivia.co.tz).
-// Static files in public/ are served by Workers Static Assets without running this code. This Worker runs first only for:
+// Runs first for every request: http:// → https:// (an http page sends Origin http://… and the portal refuses it),
+// www → apex, then HSTS on every answer. Routes:
 //   /bongo-trivia/*  → the Bluetrain Portal through the PORTAL service binding (player + agent API, SMS opt-out links).
 //                      Same origin for the browser: no CORS, and the portal host is never exposed.
 //   /r/*             → agent links /r/CODE[/CAMPAIGN][?s=subid] become /?ref=CODE&c=CAMPAIGN&s=subid for the app.
-// and for www → apex redirects.
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (url.hostname === 'www.bongotrivia.co.tz') {
-      url.hostname = 'bongotrivia.co.tz';
+    const live = url.hostname.endsWith('bongotrivia.co.tz');
+    if (live && (url.protocol === 'http:' || url.hostname === 'www.bongotrivia.co.tz')) {
+      url.protocol = 'https:'; url.port = ''; url.hostname = 'bongotrivia.co.tz';
       return Response.redirect(url.toString(), request.method === 'GET' || request.method === 'HEAD' ? 301 : 308);
     }
+    const res = await route(request, env, url);
+    if (!live) return res;
+    const out = new Response(res.body, res);
+    out.headers.set('Strict-Transport-Security', 'max-age=31536000');
+    return out;
+  }
+};
 
+async function route(request, env, url) {
+  {
     if (url.pathname.startsWith('/bongo-trivia/')) {
       if (!env.PORTAL) return Response.json({ error: 'Bongo Trivia API is not connected yet.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
       // The portal routes by host: bongotrivia.co.tz requests reach only the Bongo Trivia site code (worker/lib/bongo/site.js).
@@ -31,4 +41,4 @@ export default {
 
     return env.ASSETS.fetch(request);
   }
-};
+}

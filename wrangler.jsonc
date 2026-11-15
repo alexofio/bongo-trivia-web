@@ -16,7 +16,7 @@
     "directory": "public",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    "run_worker_first": ["/bongo-trivia/*", "/r/*"]
+    "run_worker_first": true   // every request: http → https redirect + HSTS (players on http:// were refused "Origin not allowed")
   },
   // The portal Worker must exist (it does: bluetrain-portal). Remove bongotrivia.co.tz from the portal's custom domains
   // before the first deploy of this Worker, or the deploy reports the domain as taken.
