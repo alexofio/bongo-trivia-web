@@ -118,7 +118,20 @@
       tour_4_t: 'Uko tayari', tour_4_b: 'Unaweza kubadilisha makundi yako au kuzima SMS za ofa wakati wowote kwenye Mipangilio. Bahati njema!',
       tour_next: 'Endelea', tour_back: 'Rudi nyuma', tour_skip: 'Ruka', tour_play: 'Cheza sasa', tour_later: 'Nitacheza baadaye', tour_done: 'Nimeelewa',
       back: 'Rudi', legal_draft: 'Rasimu kwa ukaguzi wa mwanasheria. Toleo la Kiswahili linahitajika kabla ya kuzindua.',
-      skip: 'Ruka hadi maudhui'
+      skip: 'Ruka hadi maudhui',
+      // live board + notifications (15 Nov 2026)
+      live_count_now: '{n} wanacheza sasa hivi · raundi {r}', live_count_hour: 'Wachezaji {n} wamecheza saa hii · raundi {r}', live_count_today: 'Wachezaji {n} wamecheza leo · raundi {r}', live_count_week: 'Wachezaji {n} wamecheza wiki hii · raundi {r}',
+      live_first: 'Kuwa wa kwanza kuweka alama ya kushinda!', live_top_hour: 'Bora saa hii', live_top_today: 'Bora leo', live_top_empty: 'Bado hakuna alama. Weka ya kwanza!',
+      live_recent: 'Raundi za karibuni', live_feed_row: '{who} alipata {c}/{n} kwa sek {s}', live_feed_empty: 'Raundi za leo zitaonekana hapa.', live_just_now: 'sasa hivi', live_min_ago: 'dakika {n} zilizopita',
+      push_card_title: 'Jua wachezaji wakiingia', push_card_body: 'Pata arifa wenzako wanapoanza kucheza, ujaribu kuwashinda. Si zaidi ya mara moja kwa saa, saa 2 asubuhi hadi saa 3 usiku.',
+      push_ios: 'Kwenye iPhone: bonyeza Share, kisha "Add to Home Screen". Fungua Bongo Trivia kutoka hapo, kisha washa arifa.', push_turn_on: 'Washa arifa', push_later: 'Si sasa', push_on_done: 'Arifa zimewashwa.',
+      push_denied: 'Arifa zimezuiwa kwenye kivinjari hiki. Ziruhusu kwenye mipangilio ya kivinjari, kisha ujaribu tena.',
+      push_state_on: 'Arifa zimewashwa kwenye kifaa hiki.', push_state_off: 'Arifa zimezimwa.', push_state_denied: 'Arifa zimezuiwa kwenye kivinjari hiki. Ziruhusu kwenye mipangilio ya kivinjari.', push_state_ios: 'Kwenye iPhone, ongeza Bongo Trivia kwenye Home Screen (Share → Add to Home Screen) kisha uifungue kutoka hapo.', push_state_unsupported: 'Kivinjari hiki hakitumi arifa. Jaribu Chrome.',
+      set_push: 'Arifa', set_push_toggle: 'Nijulishe wachezaji wakianza kucheza', set_push_help: 'Si zaidi ya arifa 1 kwa saa, saa 2 asubuhi hadi saa 3 usiku. Hatukutumii ukiwa umecheza ndani ya dakika 30 zilizopita.',
+      set_profile: 'Jina kwenye ubao wa wachezaji', set_profile_help: 'Wachezaji wengine wanaona jina lako la kwanza na mkoa wako kwenye ubao. Ukiacha wazi, tunaonyesha namba iliyofichwa (mf. 0712•••678).',
+      set_fname: 'Jina la kwanza', set_region: 'Mkoa', set_region_none: 'Usionyeshe mkoa', set_profile_save: 'Hifadhi', set_profile_saved: 'Imehifadhiwa.', set_fname_err: 'Tumia herufi tu (herufi 2 hadi 20).',
+      st_first: 'Wewe ni wa kwanza saa hii. Umeweka alama ya kushindwa!', st_top: 'Uko nafasi ya 1 kati ya wachezaji {n} saa hii. Wewe ndiye bingwa!', st_rank: 'Uko nafasi ya {r} kati ya wachezaji {n} saa hii.',
+      st_beat: 'Umewashinda {p}% ya wachezaji wa saa hii.', st_faster: 'Ulikuwa haraka kuliko {p}% ya waliopata {c}/{n} leo.',
     },
     en: {
       tagline: 'Know it. Answer it. Win it.',
@@ -228,6 +241,19 @@
       tour_4_t: 'You\'re ready', tour_4_b: 'Change your categories or turn off offer SMS any time in Settings. Good luck!',
       tour_next: 'Next', tour_back: 'Back', tour_skip: 'Skip', tour_play: 'Play now', tour_later: 'I\'ll play later', tour_done: 'Got it',
       back: 'Back', legal_draft: 'Draft for legal review. A Swahili version is required before launch.',
+      // live board + notifications (15 Nov 2026)
+      live_count_now: '{n} playing right now · {r} rounds', live_count_hour: '{n} players this hour · {r} rounds', live_count_today: '{n} players today · {r} rounds', live_count_week: '{n} players this week · {r} rounds',
+      live_first: 'Be the first to set the score to beat!', live_top_hour: 'Best this hour', live_top_today: 'Best today', live_top_empty: 'No scores yet. Set the first one!',
+      live_recent: 'Latest rounds', live_feed_row: '{who} got {c}/{n} in {s}s', live_feed_empty: "Today's rounds will show here.", live_just_now: 'just now', live_min_ago: '{n} min ago',
+      push_card_title: 'Know when people are playing', push_card_body: 'Get a notification when others start playing, and try to beat them. At most once an hour, 8 am to 9 pm.',
+      push_ios: 'On iPhone: tap Share, then "Add to Home Screen". Open Bongo Trivia from there, then turn notifications on.', push_turn_on: 'Turn on notifications', push_later: 'Not now', push_on_done: 'Notifications are on.',
+      push_denied: "Notifications are blocked in this browser. Allow them in the browser's settings, then try again.",
+      push_state_on: 'Notifications are on for this device.', push_state_off: 'Notifications are off.', push_state_denied: "Notifications are blocked in this browser. Allow them in the browser's settings.", push_state_ios: 'On iPhone, add Bongo Trivia to your Home Screen (Share → Add to Home Screen) and open it from there.', push_state_unsupported: "This browser can't show notifications. Try Chrome.",
+      set_push: 'Notifications', set_push_toggle: 'Tell me when people start playing', set_push_help: "At most 1 notification an hour, 8 am to 9 pm. None if you've played in the last 30 minutes.",
+      set_profile: 'Your name on the live board', set_profile_help: 'Other players see your first name and region on the board. Leave it empty and we show a masked number (e.g. 0712•••678).',
+      set_fname: 'First name', set_region: 'Region', set_region_none: "Don't show a region", set_profile_save: 'Save', set_profile_saved: 'Saved.', set_fname_err: 'Use letters only (2 to 20).',
+      st_first: "You're the first this hour. You've set the score to beat!", st_top: "You're number 1 of {n} players this hour. Top of the class!", st_rank: "You're number {r} of {n} players this hour.",
+      st_beat: "You've beaten {p}% of this hour's players.", st_faster: 'You were faster than {p}% of players who got {c}/{n} today.',
       skip: 'Skip to content'
     }
   };

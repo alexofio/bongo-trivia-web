@@ -33,6 +33,81 @@
   const busy = (btn, on, label) => { btn.disabled = on; btn.innerHTML = on ? `<span class="spin" aria-hidden="true"></span>${esc(label)}` : esc(btn.dataset.label); };
   const go = v => { if (location.hash.slice(1) === v) route(); else location.hash = v; };
 
+  // ---------- live board + web notifications (15 Nov 2026) ----------
+  const secs1 = ms => (Math.max(0, ms) / 1000).toFixed(1);
+  const ago = at => { const m = Math.max(0, Math.round((Date.now() - Date.parse(at)) / 60000)); return m < 1 ? t('live_just_now') : t('live_min_ago', { n: m }); };
+  const who = r => `${esc(r.name)}${r.region ? ` <small>(${esc(r.region)})</small>` : ''}`;
+  const REGIONS = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Geita', 'Iringa', 'Kagera', 'Katavi', 'Kigoma', 'Kilimanjaro', 'Lindi', 'Manyara', 'Mara', 'Mbeya', 'Morogoro', 'Mtwara', 'Mwanza', 'Njombe', 'Pwani', 'Rukwa', 'Ruvuma', 'Shinyanga', 'Simiyu', 'Singida', 'Songwe', 'Tabora', 'Tanga', 'Kaskazini Unguja', 'Kusini Unguja', 'Mjini Magharibi', 'Kaskazini Pemba', 'Kusini Pemba'];
+  const liveOn = () => API.mode === 'portal' && typeof API.live === 'function' && C.CAMPAIGN_STATUS && C.CAMPAIGN_STATUS !== 'none';
+
+  // Live section: players in play (smallest window with enough players), best this hour, latest rounds. Real numbers only.
+  const liveHtml = () => liveOn() ? `<section class="live" id="liveBox" aria-labelledby="liveH" hidden>
+      <div class="live-head"><span class="pulse" aria-hidden="true"></span><h2 id="liveH"></h2></div>
+      <div class="live-grid"><div><h3 id="topH"></h3><ol class="board" id="topList"></ol></div>
+        <div><h3>${t('live_recent')}</h3><ul class="feed" id="feed"></ul></div></div>
+    </section>` : '';
+  function bindLive() {
+    const box = $('#liveBox'); if (!box) return () => {};
+    let stop = false;
+    const draw = d => {
+      box.hidden = false;
+      $('#liveH').innerHTML = d.players ? t('live_count_' + d.window, { n: `<b>${fmt(d.players)}</b>`, r: fmt(d.rounds) }) : t('live_first');
+      $('#topH').textContent = t(d.top.period === 'hour' ? 'live_top_hour' : 'live_top_today');
+      $('#topList').innerHTML = d.top.rows.length ? d.top.rows.map(r => `<li><span class="rk">${r.rank}</span><span class="nm">${who(r)}</span><span class="sc">${r.correct}/${r.total}</span><span class="tm">${secs1(r.timeMs)}s</span></li>`).join('')
+        : `<li class="empty">${t('live_top_empty')}</li>`;
+      $('#feed').innerHTML = d.recent.length ? d.recent.map(r => `<li>${t('live_feed_row', { who: who(r), c: r.correct, n: r.total, s: secs1(r.timeMs) })} <small>· ${ago(r.at)}</small></li>`).join('')
+        : `<li class="empty">${t('live_feed_empty')}</li>`;
+    };
+    const tick = async () => { if (stop) return; if (!document.hidden) { try { draw(await API.live()); } catch (e) {} } setTimeout(tick, 20000); };
+    tick();
+    return () => { stop = true; };
+  }
+
+  // Browser notifications. iPhone: only after "Add to Home Screen" (iOS 16.4+).
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const b64u8 = b => { const s = atob(b.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((b.length + 3) % 4)); return Uint8Array.from(s, c => c.charCodeAt(0)); };
+  const Push = {
+    supported: () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
+    async sub() { if (!Push.supported()) return null; const r = await navigator.serviceWorker.getRegistration('/'); return r ? r.pushManager.getSubscription() : null; },
+    // 'on' | 'off' | 'denied' | 'ios' (install first) | 'unsupported'
+    async state() {
+      if (API.mode !== 'portal' || typeof API.pushKey !== 'function') return 'unsupported';
+      if (!Push.supported()) return isIOS && !standalone() ? 'ios' : 'unsupported';
+      if (Notification.permission === 'denied') return 'denied';
+      const s = await Push.sub().catch(() => null);
+      return s && Notification.permission === 'granted' && (await API.pushStatus(s.endpoint)) ? 'on' : 'off';
+    },
+    async on() {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') throw Object.assign(new Error('denied'), { code: 'push_denied' });
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready;
+      let s = await reg.pushManager.getSubscription();
+      if (!s) s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u8(await API.pushKey()) });
+      await API.pushOn(s.toJSON());
+    },
+    async off() { const s = await Push.sub(); if (s) { await API.pushOff(s.endpoint).catch(() => {}); await s.unsubscribe().catch(() => {}); } }
+  };
+  // Small card on the play screen asking to turn notifications on (hidden once on, denied, unsupported or dismissed).
+  const notifyHtml = () => `<section class="notify" id="notifyCard" hidden><span class="bell" aria-hidden="true">🔔</span><div id="notifyBody"></div></section>`;
+  async function bindNotify() {
+    const card = $('#notifyCard'); if (!card) return;
+    const st = await Push.state();
+    const snoozed = Number(API.store.get('bt_notify_snooze', 0)) > Date.now();
+    if (!['off', 'ios'].includes(st) || snoozed || !$('#notifyCard')) return;
+    card.hidden = false;
+    $('#notifyBody').innerHTML = `<h3>${t('push_card_title')}</h3><p>${t(st === 'ios' ? 'push_ios' : 'push_card_body')}</p>
+      <div class="row" style="justify-content:flex-start;gap:8px">${st === 'off' ? `<button class="btn blue" id="pushOn" style="min-height:44px">${t('push_turn_on')}</button>` : ''}<button class="btn text" id="pushLater" type="button">${t('push_later')}</button></div>
+      <p class="err" id="pushErr" role="alert"></p>`;
+    $('#pushLater').onclick = () => { API.store.set('bt_notify_snooze', Date.now() + 7 * 86400_000); card.hidden = true; };
+    if ($('#pushOn')) $('#pushOn').onclick = async () => {
+      const b = $('#pushOn'); b.disabled = true;
+      try { await Push.on(); card.hidden = true; toast(t('push_on_done')); announce(t('push_on_done')); }
+      catch (er) { b.disabled = false; $('#pushErr').textContent = er.code === 'push_denied' ? t('push_denied') : errText(er); }
+    };
+  }
+
   // ---------- shell: nav, footer, demo banner ----------
   function chrome(view) {
     const nav = $('#nav');
@@ -156,11 +231,13 @@
           <p class="sample">${I18N.lang === 'en' ? 'Sample question' : 'Mfano wa swali'}</p>
         </figure>
       </div></section>
+      ${liveHtml() ? `<div class="wide">${liveHtml()}</div>` : ''}
       <section class="wide">
         <h2>${t('how_title')}</h2>
         <ol class="steps"><li>${t('how_1')}</li><li>${t('how_2')}</li><li>${t('how_3')}</li><li>${t('how_4')}</li></ol>
         <p class="hint" style="margin-top:16px">${t('prize_note')}</p>
-      </section>`
+      </section>`,
+    bind: () => bindLive()
   };
 
   // Sign up and log in share one screen; sign-up adds the consents.
@@ -330,6 +407,8 @@
         </section>
         <section aria-labelledby="entH"><h2 id="entH" style="font-size:22px;margin-top:8px">${t('entries_title')}</h2>
           <div class="tally"><div><b id="eh">–</b>${t('entries_hour')}</div><div><b id="ed">–</b>${t('entries_day')}</div></div></section>
+        ${notifyHtml()}
+        ${liveHtml()}
         <section class="soon" id="adCard" ${API.mode === 'portal' ? 'hidden' : 'aria-disabled="true"'}>
           <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true"><rect x="4" y="9" width="44" height="30" rx="6" fill="none" stroke="currentColor" stroke-width="3"/><path d="M22 18v12l10-6z" fill="currentColor"/><path d="M18 45h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
           <div id="adBody"><span class="tag">${t('ads_soon')}</span><h3 style="margin:0 0 4px">${t('ads_title')}</h3><p style="margin:0;font-size:15px">${t('ads_body')}</p>
@@ -432,9 +511,12 @@
         done.onclick = () => { d.close(); adCard(); };
       };
       adCard();
+      bindNotify();
+      const stopLive = bindLive();
       $('#howBtn').onclick = () => openTour({ onPlay: open });
       if (S.autoNotice) { S.autoNotice = false; (API.mode === 'portal' && C.PLAY_MODE === 'paid' ? API.paidRounds().then(n => { paidLeft = n; open(); }) : open()); }
       else if (!S.user.tutorial_done) openTour({ onPlay: open });
+      return stopLive;
     }
   };
 
@@ -570,7 +652,7 @@
     guard: () => !!S.roundId || 'play',
     render: () => `<div class="col" id="res"><p class="hint">…</p></div>`,
     bind: async () => {
-      let r;
+      let r; const rid = S.roundId;
       try { r = await API.result(S.roundId); } catch (er) { $('#res').innerHTML = `<p class="msg bad">${errText(er)}</p>`; return; }
       S.roundId = null; S.play = null;
       const head = r.qualified
@@ -578,6 +660,7 @@
              <h1 tabindex="-1" id="rh">${t('res_win_title')}</h1><p class="lead">${t('res_win_body')}</p></div>`
         : `<div><div class="score" aria-hidden="true">${r.score}/${r.total}</div><h1 tabindex="-1" id="rh">${t('res_lose_title', { score: r.score })}</h1><p class="lead">${t('res_lose_body')}</p></div>`;
       $('#res').innerHTML = `${head}
+        <div class="standing" id="standing" hidden aria-live="polite"></div>
         <div class="stack" style="margin-top:20px">
           <button class="btn primary block" id="again">${t('res_again')}</button>
           <a class="btn text block" href="#play">${t('res_home')}</a>
@@ -588,6 +671,16 @@
           <p><span class="sr">${it.correct ? t('q_correct') : t('q_wrong')} </span>${t('res_your')}: <strong>${it.your_answer ? esc(it.your_answer) : t('res_none')}</strong></p>
           ${it.correct ? '' : `<small>${t('res_right')}: ${esc(it.correct_answer)}</small>`}</div></li>`).join('')}</ol>`;
       $('#rh').focus(); announce(r.qualified ? t('res_win_title') : t('res_lose_title', { score: r.score }));
+      // Where this round stands this hour: rank, players beaten, speed against the same score today.
+      if (API.mode === 'portal' && typeof API.standing === 'function' && rid) API.standing(rid).then(st => {
+        const box = $('#standing'); if (!box || !st || !st.ready || !st.correct) return;   // no praise for 0 right
+        const lines = [];
+        if (!st.others) lines.push(`<p class="big">${t('st_first')}</p>`);
+        else if (st.rank === 1) lines.push(`<p class="big">🏆 ${t('st_top', { n: st.players })}</p>`);
+        else lines.push(`<p class="big">${t('st_rank', { r: st.rank, n: st.players })}</p>`, st.beatPct > 0 ? `<p>${t('st_beat', { p: st.beatPct })}</p>` : '');
+        if (st.correct >= 2 && st.sameScore && st.fasterPct >= 50) lines.push(`<p>⚡ ${t('st_faster', { p: st.fasterPct, c: st.correct, n: st.total })}</p>`);
+        box.innerHTML = lines.join(''); box.hidden = false;
+      }).catch(() => {});
       $('#again').onclick = () => { S.autoNotice = true; go('play'); };
       // Paid rounds still waiting: play the next one straight away, until they're used up.
       if (API.mode === 'portal' && C.PLAY_MODE === 'paid') API.paidRounds().then(n => {
@@ -613,6 +706,18 @@
         ${catsHtml(S.user.categories)}
         <div class="err" id="catErr" role="alert"></div>
         <button class="btn blue block" id="save" style="margin-top:14px" data-label="${t('cat_save_settings')}">${t('cat_save_settings')}</button></section>
+      ${API.mode === 'portal' ? `<section class="sec" aria-labelledby="sp"><h2 id="sp">${t('set_profile')}</h2>
+        <p class="hint" style="margin-top:0">${t('set_profile_help')}</p>
+        <form id="pf2" novalidate>
+          <div class="field"><label for="fname">${t('set_fname')}</label><input id="fname" maxlength="20" autocomplete="given-name" value="${esc(S.user.first_name ? S.user.first_name.split(/\s+/)[0] : '')}"></div>
+          <div class="field"><label for="region">${t('set_region')}</label><select id="region"><option value="">${t('set_region_none')}</option>${REGIONS.map(x => `<option ${S.user.region === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+          <div class="err" id="pfErr" role="alert"></div>
+          <button class="btn blue block" id="pfSave" data-label="${t('set_profile_save')}">${t('set_profile_save')}</button>
+        </form></section>
+      <section class="sec" aria-labelledby="sn"><h2 id="sn">${t('set_push')}</h2>
+        <label class="switch"><span>${t('set_push_toggle')}</span><input type="checkbox" role="switch" id="pushT" disabled></label>
+        <p class="msg" id="pushMsg" style="margin-top:12px;background:var(--soft)" role="status">…</p>
+        <p class="hint">${t('set_push_help')}</p></section>` : ''}
       <section class="sec" aria-labelledby="ss"><h2 id="ss">${t('set_sms')}</h2>
         <label class="switch"><span>${t('set_sms_toggle')}</span><input type="checkbox" role="switch" id="sms" ${S.user.sms_marketing ? 'checked' : ''}></label>
         <p class="msg ${S.user.sms_marketing ? 'ok' : ''}" id="smsMsg" style="margin-top:12px;${S.user.sms_marketing ? '' : 'background:var(--soft)'}" role="status">${t(S.user.sms_marketing ? 'set_sms_on' : 'set_sms_off')}</p>
@@ -636,7 +741,26 @@
         sms.disabled = false;
       };
       document.querySelectorAll('[data-lang]').forEach(b => (b.onclick = () => { if (b.dataset.lang !== I18N.lang) switchLang(); }));
-      $('#logout').onclick = async () => { await API.logout().catch(() => {}); S.user = null; toast(t('logged_out')); go('home'); };
+      if ($('#pf2')) $('#pf2').onsubmit = async e => {
+        e.preventDefault(); const btn = $('#pfSave'), err = $('#pfErr'); err.textContent = '';
+        const name = $('#fname').value.trim().split(/\s+/)[0] || '';
+        if (name && !/^[\p{L}][\p{L}'-]{1,19}$/u.test(name)) { err.textContent = t('set_fname_err'); return $('#fname').focus(); }
+        busy(btn, true, t('set_profile_save'));
+        try { S.user = await API.saveProfile(name, $('#region').value); toast(t('set_profile_saved')); announce(t('set_profile_saved')); }
+        catch (er) { err.textContent = errText(er); }
+        busy(btn, false);
+      };
+      if ($('#pushT')) {
+        const tg = $('#pushT'), pm = $('#pushMsg');
+        const show = st => { tg.checked = st === 'on'; tg.disabled = !['on', 'off'].includes(st); pm.className = 'msg' + (st === 'on' ? ' ok' : ''); pm.style.background = st === 'on' ? '' : 'var(--soft)'; pm.textContent = t('push_state_' + st); };
+        Push.state().then(show).catch(() => show('unsupported'));
+        tg.onchange = async () => {
+          tg.disabled = true;
+          try { if (tg.checked) await Push.on(); else await Push.off(); show(await Push.state()); }
+          catch (er) { show(er.code === 'push_denied' ? 'denied' : await Push.state().catch(() => 'off')); if (er.code !== 'push_denied') { pm.className = 'msg bad'; pm.textContent = errText(er); } }
+        };
+      }
+      $('#logout').onclick = async () => { await Push.off().catch(() => {}); await API.logout().catch(() => {}); S.user = null; toast(t('logged_out')); go('home'); };
       S.legalBack = 'settings';
     }
   };
@@ -675,7 +799,8 @@
     if (!['quiz', 'result', 'verify'].includes(name)) { const h = app.querySelector('h1'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } }
     window.scrollTo(0, 0);
   }
-  window.addEventListener('hashchange', route);
+  let booted = false;   // a hash change while the account is still loading waits for boot (else it would land on sign-in)
+  window.addEventListener('hashchange', () => { if (booted) route(); });
 
   // ---------- boot ----------
   (async () => {
@@ -683,6 +808,6 @@
     try { S.categories = await API.categories(); } catch (e) {}
     try { S.user = await API.me(); } catch (e) { S.user = null; }
     if (S.user && S.user.lang && S.user.lang !== I18N.lang) I18N.set(S.user.lang);
-    route();
+    booted = true; route();
   })();
 }

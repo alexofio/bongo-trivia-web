@@ -67,7 +67,8 @@
       categories: (pl.categories && pl.categories.length ? pl.categories : prefs.categories) || [],
       sms_marketing: !!pl.marketing_opt_in, lang: pl.locale || I18N.lang,
       tutorial_done: !!(pl.tutorial_done_at || prefs.tutorial_done),
-      status: pl.status, wins: pl.wins || [], campaigns: pl.campaigns || []
+      status: pl.status, wins: pl.wins || [], campaigns: pl.campaigns || [],
+      first_name: pl.first_name || '', region: pl.region || ''
     };
   }
   // Campaign settings drive price, questions, timer and prizes on screen (Bongo Trivia → Campaigns in the portal).
@@ -219,6 +220,17 @@
     async clickAd(token) { return call('POST', `/ads/${token}/click`, {}); },
     // A round from a free play earned by an ad (the portal uses a paid entry first if one is waiting).
     async startFreePlay() { const roundId = await startRound(null); const id = 'ad_' + roundId; P.entries[id] = roundId; return { play_id: id, status: 'success', round_id: roundId, free: true }; },
+    // Name and region shown on the live board (first word of the name only).
+    async saveProfile(firstName, region) { const r = await call('POST', '/me', { firstName: firstName || '', region: region || '' }); const u = userOf(r.player); window.API._user = u; return u; },
+    // Live board: players in play, top scores, recent rounds (real numbers, refreshed every 20 s by the portal).
+    async live() { return call('GET', `/live?campaign=${encodeURIComponent(C.CAMPAIGN_CODE)}`); },
+    // Where a finished round stands this hour: { ready, rank, players, beatPct, fasterPct, sameScore, correct, total }.
+    async standing(roundId) { return call('GET', `/me/standing?round=${encodeURIComponent(roundId)}`); },
+    // Web notifications ("people are playing"): VAPID public key, subscribe this browser, turn off, check.
+    async pushKey() { return (await call('GET', '/push/key')).publicKey; },
+    async pushOn(subscription) { return call('POST', '/push', { campaign: C.CAMPAIGN_CODE, subscription, locale: I18N.lang }); },
+    async pushOff(endpoint) { return call('POST', '/push/off', { endpoint }); },
+    async pushStatus(endpoint) { try { return (await call('POST', '/push/status', { endpoint })).on; } catch (e) { return false; } },
     // Agent link click (once per visit with ?ref=): returns a token used at sign-up.
     async trackClick({ code, campaign, subid, utm }) { const r = await call('POST', '/click', { code, campaign, subid, utm, channel: 'link' }); return r.token; }
   };

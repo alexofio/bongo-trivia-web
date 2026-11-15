@@ -1,0 +1,16 @@
+{
+  "name": "Bongo Trivia",
+  "short_name": "Bongo Trivia",
+  "description": "Jibu maswali 3 sahihi uingie kwenye droo kila saa na kila siku.",
+  "start_url": "/#play",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#023DC1",
+  "theme_color": "#023DC1",
+  "lang": "sw",
+  "icons": [
+    { "src": "/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

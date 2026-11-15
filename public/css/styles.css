@@ -257,3 +257,29 @@ footer.band { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Live board (15 Nov 2026): players in play, best this hour, latest rounds. */
+.live { background: var(--soft); border-radius: var(--r-lg); padding: 18px 18px 14px; margin-top: 18px; }
+.live-head { display: flex; align-items: center; gap: 10px; }
+.live-head h2 { font-size: 20px; margin: 0; font-family: Lexend, sans-serif; font-weight: 600; }
+.live-head h2 b { font-family: 'Lilita One', sans-serif; font-weight: 400; font-size: 28px; color: var(--strong); }
+.pulse { width: 12px; height: 12px; border-radius: 50%; background: #1FBF5B; flex: none; box-shadow: 0 0 0 0 rgba(31,191,91,.6); animation: btPulse 1.6s infinite; }
+@keyframes btPulse { 70% { box-shadow: 0 0 0 10px rgba(31,191,91,0); } 100% { box-shadow: 0 0 0 0 rgba(31,191,91,0); } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+.live-grid { display: grid; gap: 14px; margin-top: 12px; }
+@media (min-width: 720px) { .live-grid { grid-template-columns: 1fr 1fr; } }
+.live h3 { font-size: 15px; margin: 0 0 6px; color: var(--muted); font-weight: 600; }
+.board, .feed { list-style: none; margin: 0; padding: 0; }
+.board li { display: grid; grid-template-columns: 26px 1fr auto auto; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.board li:last-child, .feed li:last-child { border-bottom: 0; }
+.board .rk { font-family: 'Lilita One', sans-serif; font-size: 18px; color: var(--strong); text-align: center; }
+.board li:first-child .rk { background: var(--ribbon); color: #000; border-radius: 50%; width: 26px; height: 26px; line-height: 26px; }
+.board .sc { font-weight: 700; } .board .tm { color: var(--muted); font-variant-numeric: tabular-nums; }
+.board small, .feed small { color: var(--muted); }
+.feed li { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.board .empty, .feed .empty { display: block; color: var(--muted); }
+.notify { border: 2px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; }
+.notify .bell { font-size: 28px; line-height: 1; flex: none; width: 36px; text-align: center; }
+.notify h3 { margin: 0 0 4px; } .notify p { margin: 0 0 8px; font-size: 15px; }
+.standing { background: var(--soft); border-radius: var(--r-md); padding: 14px 16px; margin-top: 16px; }
+.standing p { margin: 4px 0; } .standing .big { font-weight: 700; font-size: 18px; color: var(--strong); }
