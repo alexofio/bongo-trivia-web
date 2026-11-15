@@ -307,6 +307,7 @@
     render: () => `<div class="col">
       <h1>${t('verify_title')}</h1>
       <p class="lead">${t('verify_body', { phone: `<strong style="white-space:nowrap">${showPhone(S.auth.msisdn)}</strong>` })}</p>
+      ${C.SMS_FROM ? `<p class="note">${t('verify_from', { from: `<strong>${esc(C.SMS_FROM)}</strong>` })}</p>` : ''}
       <form id="f" novalidate>
         <div class="field">
           <label for="code">${t('code_label')}</label>

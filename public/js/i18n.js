@@ -119,6 +119,7 @@
       tour_next: 'Endelea', tour_back: 'Rudi nyuma', tour_skip: 'Ruka', tour_play: 'Cheza sasa', tour_later: 'Nitacheza baadaye', tour_done: 'Nimeelewa',
       back: 'Rudi', legal_draft: 'Rasimu kwa ukaguzi wa mwanasheria. Toleo la Kiswahili linahitajika kabla ya kuzindua.',
       skip: 'Ruka hadi maudhui',
+      verify_from: 'Nambari itatoka kwa {from}. Haijafika? Angalia pia ujumbe uliozuiwa (Spam).',
       // live board + notifications (15 Nov 2026)
       live_count_now: '{n} wanacheza sasa hivi · raundi {r}', live_count_hour: 'Wachezaji {n} wamecheza saa hii · raundi {r}', live_count_today: 'Wachezaji {n} wamecheza leo · raundi {r}', live_count_week: 'Wachezaji {n} wamecheza wiki hii · raundi {r}',
       live_first: 'Kuwa wa kwanza kuweka alama ya kushinda!', live_top_hour: 'Bora saa hii', live_top_today: 'Bora leo', live_top_empty: 'Bado hakuna alama. Weka ya kwanza!',
@@ -241,6 +242,7 @@
       tour_4_t: 'You\'re ready', tour_4_b: 'Change your categories or turn off offer SMS any time in Settings. Good luck!',
       tour_next: 'Next', tour_back: 'Back', tour_skip: 'Skip', tour_play: 'Play now', tour_later: 'I\'ll play later', tour_done: 'Got it',
       back: 'Back', legal_draft: 'Draft for legal review. A Swahili version is required before launch.',
+      verify_from: "The code comes from {from}. Not there? Check blocked messages (Spam) too.",
       // live board + notifications (15 Nov 2026)
       live_count_now: '{n} playing right now · {r} rounds', live_count_hour: '{n} players this hour · {r} rounds', live_count_today: '{n} players today · {r} rounds', live_count_week: '{n} players this week · {r} rounds',
       live_first: 'Be the first to set the score to beat!', live_top_hour: 'Best this hour', live_top_today: 'Best today', live_top_empty: 'No scores yet. Set the first one!',

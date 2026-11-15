@@ -77,7 +77,8 @@
     C.PRICE_TZS = camp.entry.priceTzs || C.PRICE_TZS;
     C.QUESTIONS_PER_SET = camp.questions;
     C.QUESTION_SECONDS = camp.seconds;
-    C.PLAY_MODE = camp.entry.playMode;                // 'paid' | 'off' (payments switched off: free) | 'free'
+    C.PLAY_MODE = camp.entry.playMode;
+    C.SMS_FROM = camp.smsFrom || null;               // sender name the code SMS comes from (MRBET until BONGOTRIVIA is registered)                // 'paid' | 'off' (payments switched off: free) | 'free'
     const hourly = c.prizes.find(p => p.tier === 'hourly'), daily = c.prizes.find(p => p.tier === 'daily');
     if (hourly && hourly.amount_tzs) C.PRIZES.hourly = hourly.amount_tzs;
     if (daily && daily.amount_tzs) C.PRIZES.daily = daily.amount_tzs;
